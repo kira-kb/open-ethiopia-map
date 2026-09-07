@@ -14,7 +14,7 @@ WORKDIR /app
 # Install openssl for Prisma binary engine
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json tsconfig.json ./
+COPY package*.json tsconfig.json prisma.config.ts ./
 COPY prisma ./prisma/
 
 RUN npm install
@@ -49,6 +49,7 @@ COPY --from=node-builder /app/package*.json ./
 COPY --from=node-builder /app/node_modules ./node_modules
 COPY --from=node-builder /app/dist ./dist
 COPY --from=node-builder /app/prisma ./prisma
+COPY --from=node-builder /app/prisma.config.ts ./
 COPY scripts/start.sh ./scripts/start.sh
 
 RUN chmod +x ./scripts/start.sh

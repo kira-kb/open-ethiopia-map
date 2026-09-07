@@ -25,8 +25,8 @@ export const config = {
   },
 
   database: {
-    url: env("MAP_DATABASE_URL", ""),
-    neonUrl: env("MAP_DATABASE_URL_UNPOOLED", ""),
+    url: env("MAP_DATABASE_URL", "") || env("DATABASE_URL", ""),
+    neonUrl: env("MAP_DATABASE_URL_UNPOOLED", "") || env("DATABASE_URL_UNPOOLED", ""),
   },
 
   redis: {
