@@ -1,0 +1,63 @@
+name: open-ethiopia-map
+
+services:
+  # Standalone Open Ethiopia Map & Routing Engine (All-in-One)
+  map-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: open-ethiopia-map:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-7860}:7860"
+    environment:
+      NODE_ENV: production
+      PORT: 7860
+      OSRM_INTERNAL_PORT: 5000
+      OSRM_BASE_URL: http://127.0.0.1:5000
+      MAP_DATABASE_URL: ${MAP_DATABASE_URL:-postgresql://postgres:postgres@map-postgres:5432/packman_maps?schema=public}
+      MAP_REDIS_URL: ${MAP_REDIS_URL:-redis://map-redis:6379/0}
+      MAP_CACHE_TTL_ROUTE: 3600
+      MAP_CACHE_TTL_AUTOCOMPLETE: 1800
+      MAP_CACHE_TTL_REVERSE: 86400
+      MAP_CACHE_TTL_NEARBY: 900
+    volumes:
+      - osrm_data:/data
+    depends_on:
+      map-postgres:
+        condition: service_healthy
+      map-redis:
+        condition: service_healthy
+
+  # Optional local PostgreSQL (or replace MAP_DATABASE_URL with free cloud Supabase / Neon)
+  map-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-packman_maps}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-packman_maps}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional local Redis for route & autocomplete acceleration
+  map-redis:
+    image: redis:alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  osrm_data:
+  postgres_data:
+  redis_data:

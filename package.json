@@ -1,0 +1,51 @@
+{
+  "name": "open-ethiopia-map",
+  "version": "1.0.0",
+  "description": "Open-Source Map, Routing, Geocoding & Landmark Engine for Ethiopia",
+  "author": "Open Ethiopia Map Contributors",
+  "license": "MIT",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "dev": "ts-node --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "start:standalone": "./scripts/start.sh",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "test": "jest --passWithNoTests"
+  },
+  "keywords": [
+    "ethiopia",
+    "maps",
+    "osrm",
+    "routing",
+    "geocoding",
+    "autocomplete",
+    "addis-ababa",
+    "navigation",
+    "open-source"
+  ],
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/client": "^7.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.8.1",
+    "morgan": "^1.10.1",
+    "uuid": "^11.1.0",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.9.2",
+    "@types/uuid": "^10.0.0",
+    "prisma": "^7.8.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

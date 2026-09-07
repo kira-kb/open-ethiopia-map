@@ -1,0 +1,630 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/map-client"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PlaceSource {
+  OPEN_STREET_MAP
+  PHOTON
+  NOMINATIM
+  GOOGLE_PLACES
+  MAPBOX
+  HERE
+  PELIAS
+  GEOAPIFY
+  APPLE_MAPS
+  MANUAL
+  PACKMAN
+  IMPORTED_DATASET
+  SCRAPER
+}
+
+enum LocationType {
+  APARTMENT
+  CONDOMINIUM
+  OFFICE
+  OFFICE_BUILDING
+  SHOPPING_MALL
+  HOTEL
+  HOSPITAL
+  SCHOOL
+  UNIVERSITY
+  RESTAURANT
+  WAREHOUSE
+  FACTORY
+  GOVERNMENT_OFFICE
+  BANK
+  PHARMACY
+  FUEL_STATION
+  PARKING
+  HOUSE
+  VILLA
+  ROAD
+  STREET
+  INTERSECTION
+  LANDMARK
+  BUS_STATION
+  AIRPORT
+  SMART_LOCKER
+  DORMITORY
+  SHOP
+  POLICE
+  FIRE_STATION
+  TAXI_STAND
+  PARK
+  CONSTRUCTION_SITE
+  OTHER
+}
+
+enum ConfidenceLevel {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+// ─── Core Location ───────────────────────────────────────────────────
+
+model Location {
+  id              String       @id @default(cuid())
+  name            String
+  normalizedName  String
+  latitude        Float
+  longitude       Float
+  locationType    LocationType?
+  category        String?
+  subcategory     String?
+  verified        Boolean      @default(false)
+
+  // Address (denormalized for fast reads, normalized in LocationGeometry)
+  formattedAddress String?
+  street          String?
+  houseNumber     String?
+  district        String?
+  subcity         String?
+  city            String?
+  region          String?
+  country         String       @default("Ethiopia")
+  postalCode      String?
+
+  // Relations
+  providerRecords  LocationProviderRecord[]
+  aliases          LocationAlias[]
+  geometries       LocationGeometry[]
+  hierarchies      LocationHierarchy[]   @relation("LocationChildren")
+  parentOf         LocationHierarchy[]   @relation("LocationParent")
+  accessInfo       LocationAccess?
+  enrichments      LocationEnrichment[]
+  confidence       LocationConfidence?
+  recommendations  LocationRecommendation[]
+  searchHistory    LocationSearchHistory[]
+  savedPlaces      SavedPlace[]
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([normalizedName])
+  @@index([latitude, longitude])
+  @@index([city, subcity])
+  @@index([locationType])
+  @@index([category])
+}
+
+// ─── Provider Records ────────────────────────────────────────────────
+
+model LocationProviderRecord {
+  id              String       @id @default(cuid())
+  locationId      String
+  location        Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  source          PlaceSource  @default(PACKMAN)
+  providerPlaceId String?
+  providerName    String?
+  providerMetadata Json?
+  importedAt      DateTime     @default(now())
+
+  @@index([locationId])
+  @@index([source])
+  @@index([providerPlaceId])
+}
+
+// ─── Aliases ─────────────────────────────────────────────────────────
+
+model LocationAlias {
+  id              String   @id @default(cuid())
+  locationId      String
+  location        Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  alias           String
+  language        String?
+  isPreferred     Boolean  @default(false)
+  source          String?
+  createdAt       DateTime @default(now())
+
+  @@index([locationId])
+  @@index([alias])
+}
+
+// ─── Geometry ────────────────────────────────────────────────────────
+
+model LocationGeometry {
+  id              String   @id @default(cuid())
+  locationId      String
+  location        Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  geometryType    String   @default("point")
+  coordinates     Json
+  precision       Float?
+  source          String?
+  createdAt       DateTime @default(now())
+
+  @@index([locationId])
+}
+
+// ─── Hierarchy ───────────────────────────────────────────────────────
+
+model LocationHierarchy {
+  id              String   @id @default(cuid())
+  locationId      String
+  location        Location @relation("LocationChildren", fields: [locationId], references: [id], onDelete: Cascade)
+  parentId        String
+  parent          Location @relation("LocationParent", fields: [parentId], references: [id])
+  relationType    String   @default("contains")
+  depth           Int      @default(0)
+
+  @@index([locationId])
+  @@index([parentId])
+}
+
+// ─── Access Info ─────────────────────────────────────────────────────
+
+model LocationAccess {
+  id              String   @id @default(cuid())
+  locationId      String   @unique
+  location        Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  hasGate         Boolean  @default(false)
+  hasSecurity     Boolean  @default(false)
+  hasElevator     Boolean  @default(false)
+  hasParking      Boolean  @default(false)
+  accessHours     String?
+  accessNotes     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Enrichment ──────────────────────────────────────────────────────
+
+model LocationEnrichment {
+  id              String   @id @default(cuid())
+  locationId      String?
+  location        Location? @relation(fields: [locationId], references: [id])
+  userId          String?
+  suggestedName   String?
+  finalName       String
+  locationType    LocationType?
+  extraDetails    Json?
+  latitude        Float
+  longitude       Float
+  coordHash       String
+  savePlace       Boolean  @default(false)
+  savedLabel      String?
+  sourceProvider  String?
+  createdAt       DateTime @default(now())
+
+  @@index([coordHash])
+  @@index([userId])
+  @@index([locationId])
+}
+
+// ─── Confidence ──────────────────────────────────────────────────────
+
+model LocationConfidence {
+  id                    String          @id @default(cuid())
+  locationId            String?       @unique
+  location              Location?       @relation(fields: [locationId], references: [id])
+  coordHash             String          @unique
+  successfulDeliveries  Int             @default(0)
+  failedDeliveries      Int             @default(0)
+  driverCorrections     Int             @default(0)
+  driverHelpRequests    Int             @default(0)
+  successfulFirstAttempt Int            @default(0)
+  customerCorrections   Int             @default(0)
+  confirmationCount     Int             @default(0)
+  editCount             Int             @default(0)
+  confidenceScore       Float           @default(0)
+  confidenceLevel       ConfidenceLevel @default(VERY_LOW)
+  lastSuccessfulDelivery DateTime?
+  lastConfirmedAt       DateTime?
+  lastUpdatedAt         DateTime        @updatedAt
+  createdAt             DateTime        @default(now())
+
+  @@index([coordHash])
+  @@index([locationId])
+}
+
+// ─── Recommendation Cache ────────────────────────────────────────────
+
+model LocationRecommendation {
+  id                  String   @id @default(cuid())
+  locationId          String?
+  location            Location? @relation(fields: [locationId], references: [id])
+  coordHash           String   @unique
+  latitude            Float
+  longitude           Float
+  recommendedName     String
+  acceptedNames       String[]
+  enrichmentCount     Int      @default(0)
+  deliveryCount       Int      @default(0)
+  lastUsedAt          DateTime?
+  providerScore       Float    @default(0)
+  locationType        LocationType?
+  acceptedProvider    String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([coordHash])
+  @@index([locationId])
+}
+
+// ─── Search History ──────────────────────────────────────────────────
+
+model LocationSearchHistory {
+  id              String   @id @default(cuid())
+  locationId      String?
+  location        Location? @relation(fields: [locationId], references: [id])
+  query           String
+  normalizedQuery String
+  userId          String?
+  source          String
+  responseTimeMs  Int
+  resultCount     Int
+  provider        String
+  ipAddress       String?
+  createdAt       DateTime @default(now())
+
+  @@index([normalizedQuery])
+  @@index([locationId])
+  @@index([createdAt])
+}
+
+// ─── Saved Places ────────────────────────────────────────────────────
+
+model SavedPlace {
+  id              String      @id @default(cuid())
+  userId          String
+  locationId      String?
+  location        Location?   @relation(fields: [locationId], references: [id])
+  label           String
+  name            String?
+  address         String?
+  latitude        Float
+  longitude       Float
+  city            String?
+  locationType    LocationType?
+  extraDetails    Json?
+  isDefault       Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  @@index([userId])
+  @@index([userId, deletedAt])
+  @@index([locationId])
+}
+
+// ─── Legacy Models (kept for backward compat) ────────────────────────
+
+model Place {
+  id              String       @id @default(cuid())
+  officialName    String?
+  displayName     String?
+  shortName       String?
+  normalizedName  String
+  aliases         String[]
+  latitude        Float
+  longitude       Float
+  formattedAddress String?
+  street          String?
+  houseNumber     String?
+  building        String?
+  block           String?
+  floor           String?
+  unit            String?
+  district        String?
+  subcity         String?
+  city            String?
+  region          String?
+  country         String       @default("Ethiopia")
+  postalCode      String?
+  locationType    LocationType?
+  category        String?
+  subcategory     String?
+  source          PlaceSource  @default(PACKMAN)
+  providerPlaceId String?
+  providerMetadata Json?
+  popularity      Float        @default(0)
+  confidence      Float        @default(0)
+  searchCount     Int          @default(0)
+  selectionCount  Int          @default(0)
+  verified        Boolean      @default(false)
+  recommendationConfidence Float        @default(0)
+  recommendationCount      Int          @default(0)
+  confirmationCount        Int          @default(0)
+  editCount                Int          @default(0)
+  lastConfirmedAt          DateTime?
+  lastEditedAt             DateTime?
+  sourceProvider           String?
+  metadata        Json?
+  searchHistory   SearchHistory[] @relation("PlaceSearchHistory")
+  confirmations   PlaceConfirmation[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([normalizedName])
+  @@index([city, subcity])
+  @@index([category])
+  @@index([source])
+  @@index([verified, popularity])
+  @@index([searchCount])
+  @@index([latitude, longitude])
+  @@index([locationType])
+  @@index([confidence])
+  @@index([recommendationConfidence])
+}
+
+model RecommendCache {
+  id                  String   @id @default(cuid())
+  coordHash           String   @unique
+  latitude            Float
+  longitude           Float
+  recommendedName     String
+  confidence          Float    @default(0)
+  enrichmentCount     Int      @default(0)
+  editCount           Int      @default(0)
+  providerMetadata    Json?
+  locationType        LocationType?
+  acceptedProvider    String?
+  lastEnrichedAt      DateTime?
+  lastEditedAt        DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([coordHash])
+}
+
+model PlaceConfirmation {
+  id              String   @id @default(cuid())
+  placeId         String?
+  place           Place?   @relation(fields: [placeId], references: [id])
+  coordHash       String?
+  userId          String?
+  acceptedName    String
+  locationType    LocationType?
+  extraDetails    Json?
+  isEdit          Boolean  @default(false)
+  sourceProvider  String?
+  createdAt       DateTime @default(now())
+
+  @@index([placeId])
+  @@index([coordHash])
+  @@index([userId])
+}
+
+model SearchHistory {
+  id              String       @id @default(cuid())
+  query           String
+  normalizedQuery String
+  selectedPlaceId String?
+  selectedPlace   Place?       @relation("PlaceSearchHistory", fields: [selectedPlaceId], references: [id])
+  userId          String?
+  source          String
+  responseTimeMs  Int
+  resultCount     Int
+  provider        String
+  ipAddress       String?
+  createdAt       DateTime     @default(now())
+
+  @@index([normalizedQuery])
+  @@index([selectedPlaceId])
+  @@index([createdAt])
+}
+
+// ─── Unchanged Legacy Models ─────────────────────────────────────────
+
+model RouteHistory {
+  id              String       @id @default(cuid())
+  originLat       Float
+  originLng       Float
+  destLat         Float
+  destLng         Float
+  profile         String
+  provider        String
+  distanceM       Float
+  durationS       Float
+  cacheStatus     String
+  processingTimeMs Int
+  requestHash     String
+  version         Int          @default(1)
+  sessionId       String?
+  createdAt       DateTime     @default(now())
+
+  @@index([requestHash])
+  @@index([profile])
+  @@index([createdAt])
+}
+
+model ProviderHealth {
+  id                  String        @id @default(cuid())
+  provider            String        @unique
+  status              ProviderStatus @default(UNKNOWN)
+  latencyMs           Int?
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  failureCount        Int           @default(0)
+  consecutiveFailures Int           @default(0)
+  uptimePercent       Float?
+  metadata            Json?
+  lastCheckedAt       DateTime      @default(now())
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+enum ProviderStatus {
+  HEALTHY
+  DEGRADED
+  UNHEALTHY
+  UNKNOWN
+}
+
+model TrafficSegment {
+  id              String   @id @default(cuid())
+  segmentId       String
+  profile         String
+  averageSpeed    Float?
+  historicalSpeed Float?
+  congestion      Float?
+  source          String
+  latitude        Float
+  longitude       Float
+  recordedAt      DateTime @default(now())
+  expiresAt       DateTime?
+
+  @@index([segmentId, profile])
+  @@index([recordedAt])
+}
+
+model CacheStatistics {
+  id              String   @id @default(cuid())
+  cacheKey        String   @unique
+  cacheType       String
+  hitCount        Int      @default(0)
+  missCount       Int      @default(0)
+  ttlSeconds      Int
+  lastAccessedAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ImportJob {
+  id              String           @id @default(cuid())
+  source          String
+  status          ImportJobStatus  @default(PENDING)
+  totalRecords    Int              @default(0)
+  importedRecords Int              @default(0)
+  failedRecords   Int              @default(0)
+  config          Json?
+  errorLog        Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+enum ImportJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+model ScraperRun {
+  id              String           @id @default(cuid())
+  scraper         String
+  status          ScraperRunStatus @default(PENDING)
+  urlsVisited     Int              @default(0)
+  placesFound     Int              @default(0)
+  placesImported  Int              @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorLog        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+enum ScraperRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model ImportAudit {
+  id              String   @id @default(cuid())
+  importer        String
+  durationMs      Int
+  totalRecords    Int
+  importedRecords Int
+  skippedRecords  Int
+  failedRecords   Int
+  errorLog        Json?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+}
+
+model ScraperAudit {
+  id              String   @id @default(cuid())
+  scraper         String
+  pagesVisited    Int      @default(0)
+  placesFound     Int      @default(0)
+  placesImported  Int      @default(0)
+  failures        Int      @default(0)
+  durationMs      Int?
+  errorLog        Json?
+  createdAt       DateTime @default(now())
+}
+
+// ─── Route Session (Canonical Route) ────────────────────────────────
+
+model RouteSession {
+  id              String          @id @default(cuid())
+  deliveryId      String          @unique
+  provider        String
+  profile         String
+  originLat       Float
+  originLng       Float
+  destLat         Float
+  destLng         Float
+  distanceMeters  Float
+  durationSeconds Int
+  geometry        Json            // GeoJSON LineString
+  instructions    Json?           // Turn-by-turn directions
+  routeHash       String          // MD5 of origin|dest|profile|options
+  currentRevision Int             @default(1)
+  status          String          @default("active") // active | completed | cancelled
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  revisions       RouteRevision[]
+
+  @@index([deliveryId])
+  @@index([routeHash])
+}
+
+model RouteRevision {
+  id              String   @id @default(cuid())
+  sessionId       String
+  version         Int
+  previousRevisionId String? @map("previous_revision_id")
+  previousRevision    RouteRevision? @relation("RevisionChain", fields: [previousRevisionId], references: [id])
+  revisions       RouteRevision[] @relation("RevisionChain")
+  provider        String
+  profile         String
+  geometry        Json     // GeoJSON LineString
+  distanceMeters  Float
+  durationSeconds Int
+  instructions    Json?
+  reason          String   @default("INITIAL") // INITIAL | DRIVER_REQUEST | TRAFFIC | ROAD_CLOSED | PROVIDER_FAILOVER | SYSTEM
+  processingTimeMs Int?
+  cacheHit        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  session         RouteSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, version])
+  @@index([sessionId])
+  @@index([previousRevisionId])
+}

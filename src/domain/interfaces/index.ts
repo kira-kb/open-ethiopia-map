@@ -1,0 +1,11 @@
+export { IRouteProvider, type RouteRequest, type RouteResult } from "./route-provider.interface";
+export { IGeocodeProvider, type AutocompleteRequest, type ReverseGeocodeRequest } from "./geocode-provider.interface";
+export { IPlaceRepository, type SearchOptions, type NearbyOptions, type SavedPlaceRecord } from "./place-repository.interface";
+export { ICache, type CacheOptions } from "./cache.interface";
+export { IEventBus, type EventHandler } from "./event-bus.interface";
+export { Logger } from "./logger.interface";
+export { IMetricsRegistry } from "./metrics.interface";
+export { IRecommendationCache, type CachedRecommendation } from "./recommendation-cache.interface";
+export { IRecommendationEngine, type RecommendationResult } from "./recommendation-engine.interface";
+export { ISearchSource, type SearchSourceQuery } from "./search-source.interface";
+export { IRouteSessionRepository, type SaveRouteSessionData, type SaveRouteRevisionData } from "./route-session-repository.interface";
