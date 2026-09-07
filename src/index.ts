@@ -31,7 +31,7 @@ import { AutocompleteController } from "./presentation/controllers/autocomplete.
 import { ReverseGeocodeController } from "./presentation/controllers/reverse-geocode.controller";
 import { NearbyController } from "./presentation/controllers/nearby.controller";
 import { HealthController } from "./presentation/controllers/health.controller";
-import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController } from "./presentation/controllers";
+import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController } from "./presentation/controllers";
 import { createRouter } from "./presentation/router";
 import { createErrorHandler } from "./presentation/middleware/error-handler";
 import { createRequestLogger } from "./presentation/middleware/request-logger";
@@ -148,6 +148,7 @@ async function main(): Promise<void> {
   const enrichmentController = new EnrichmentController(placeRepo, enrichmentRepo, recommendationCache, eventBus, logger, invalidateUserCache);
   const savedPlacesController = new SavedPlacesController(placeRepo, logger, invalidateUserCache);
   const locationIngestController = new LocationIngestController(logger, recommendationCache);
+  const tileController = new TileController(logger);
 
   const app = express();
   app.use(
@@ -169,6 +170,7 @@ async function main(): Promise<void> {
     savedPlacesController,
     routeSessionController,
     locationIngestController,
+    tileController,
   );
   app.use(router);
   app.use(createErrorHandler(logger));

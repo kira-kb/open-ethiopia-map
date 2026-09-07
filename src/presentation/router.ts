@@ -8,7 +8,7 @@ import { EnrichmentController } from "./controllers/enrichment.controller";
 import { SavedPlacesController } from "./controllers/saved-places.controller";
 import { RouteSessionController } from "./controllers/route-session.controller";
 import { LocationIngestController } from "./controllers/location-ingest.controller";
-
+import { TileController } from "./controllers/tile.controller";
 import { renderDocsHtml } from "./views/docs.page";
 
 export function createRouter(
@@ -21,6 +21,7 @@ export function createRouter(
   savedPlacesController?: SavedPlacesController,
   routeSessionController?: RouteSessionController,
   locationIngestController?: LocationIngestController,
+  tileController?: TileController,
 ): Router {
   const router = Router();
 
@@ -36,6 +37,7 @@ export function createRouter(
           reverseGeocode: "/api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
           nearby: "/api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
           route: "POST /api/v1/map/route",
+          tiles: "/api/v1/map/tiles/{style}/{z}/{x}/{y}.png (styles: dark, light, voyager, osm)",
           savedPlaces: "/api/v1/map/saved-places",
         },
       });
@@ -49,6 +51,13 @@ export function createRouter(
   router.get("/api/v1/map/reverse-geocode", reverseGeocodeController.lookup.bind(reverseGeocodeController));
   router.get("/api/v1/map/nearby", nearbyController.search.bind(nearbyController));
   router.get("/health", healthController.check.bind(healthController));
+
+  if (tileController) {
+    router.get("/api/v1/map/tiles/:style/:z/:x/:y.png", tileController.serve.bind(tileController));
+    router.get("/api/v1/map/tiles/:style/:z/:x/:y", tileController.serve.bind(tileController));
+    router.get("/api/v1/map/tiles/:z/:x/:y.png", tileController.serve.bind(tileController));
+    router.get("/api/v1/map/tiles/:z/:x/:y", tileController.serve.bind(tileController));
+  }
 
   if (locationIngestController) {
     router.post("/api/v1/map/locations/ingest", locationIngestController.ingest.bind(locationIngestController));

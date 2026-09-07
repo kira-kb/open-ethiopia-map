@@ -8,6 +8,8 @@ export function renderDocsHtml(): string {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
       --bg-base: #0a0e17;
@@ -54,7 +56,7 @@ export function renderDocsHtml(): string {
     header {
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 1000;
       background: rgba(10, 14, 23, 0.85);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border-subtle);
@@ -107,6 +109,7 @@ export function renderDocsHtml(): string {
       padding: 0.3rem;
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
     }
 
     .tab-btn {
@@ -479,12 +482,57 @@ export function renderDocsHtml(): string {
       display: block;
     }
 
+    /* Leaflet Map Styling */
+    #liveLeafletMap {
+      height: 480px;
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+
+    .code-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.5rem;
+    }
+
+    .code-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .code-tab-btn.active {
+      color: #fff;
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+    }
+
+    .code-snippet-panel {
+      display: none;
+    }
+
+    .code-snippet-panel.active {
+      display: block;
+    }
+
     /* Toast Notification */
     #toast {
       position: fixed;
       bottom: 2rem;
       right: 2rem;
-      z-index: 100;
+      z-index: 2000;
       background: #1e293b;
       color: #fff;
       padding: 0.85rem 1.5rem;
@@ -512,7 +560,7 @@ export function renderDocsHtml(): string {
       inset: 0;
       background: rgba(0, 0, 0, 0.7);
       backdrop-filter: blur(8px);
-      z-index: 90;
+      z-index: 1500;
       display: none;
       align-items: center;
       justify-content: center;
@@ -542,16 +590,16 @@ export function renderDocsHtml(): string {
       <div class="brand-logo">🇪🇹</div>
       <div>
         <div class="brand-title">Open Ethiopia Map Platform</div>
-        <div class="brand-sub">Routing • Geocoding • Autocomplete • Places</div>
+        <div class="brand-sub">Routing • Geocoding • Map Tiles • Saved Places</div>
       </div>
     </div>
 
     <nav class="nav-tabs">
       <button class="tab-btn active" onclick="switchTab('tab-crud')">📍 Saved Places CRUD</button>
+      <button class="tab-btn" onclick="switchTab('tab-tiles')">🗺️ Map Tiles & SDKs</button>
       <button class="tab-btn" onclick="switchTab('tab-playground')">⚡ API Explorer</button>
-      <button class="tab-btn" onclick="switchTab('tab-sandbox')">🗺️ Live Map Sandbox</button>
       <button class="tab-btn" onclick="switchTab('tab-ingest')">📥 Ingest & Enrichment</button>
-      <button class="tab-btn" onclick="switchTab('tab-architecture')">🏛️ System Specs</button>
+      <button class="tab-btn" onclick="switchTab('tab-architecture')">🏛️ Specs</button>
     </nav>
 
     <div class="status-badge" id="system-health-badge">
@@ -687,15 +735,226 @@ export function renderDocsHtml(): string {
       </div>
     </section>
 
-    <!-- TAB 2: INTERACTIVE API EXPLORER -->
+    <!-- TAB 2: MAP TILES & CLIENT INTEGRATION GUIDE -->
+    <section id="tab-tiles" class="tab-panel">
+      <div class="grid-2">
+        <!-- Live Map Interactive Canvas -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <h2 class="card-title" style="margin-bottom: 0;">🗺️ Live Map Tile Renderer</h2>
+              <p class="card-desc" style="margin-bottom: 0;">Powered by <code>/api/v1/map/tiles/{style}/{z}/{x}/{y}.png</code></p>
+            </div>
+            <div style="display: flex; gap: 0.3rem;">
+              <button class="btn btn-secondary btn-sm" onclick="setTileLayerStyle('dark')">🌙 Dark</button>
+              <button class="btn btn-secondary btn-sm" onclick="setTileLayerStyle('voyager')">🗺️ Street</button>
+              <button class="btn btn-secondary btn-sm" onclick="setTileLayerStyle('light')">☀️ Light</button>
+              <button class="btn btn-secondary btn-sm" onclick="setTileLayerStyle('osm')">🌍 OSM</button>
+            </div>
+          </div>
+
+          <div id="liveLeafletMap"></div>
+
+          <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+            <div>📍 Click anywhere on the map to reverse geocode & inspect coordinates.</div>
+            <button class="btn btn-primary btn-sm" onclick="drawDemoRoute()">🚗 Draw Demo Route</button>
+          </div>
+        </div>
+
+        <!-- Code Snippets for React, React Native, Plain HTML -->
+        <div class="card">
+          <h2 class="card-title">💻 Client Rendering Integration Guide</h2>
+          <p class="card-desc">How to render these map tiles and routes in your web and mobile applications.</p>
+
+          <div class="code-tabs">
+            <button class="code-tab-btn active" onclick="switchCodeTab('code-react')">⚛️ React</button>
+            <button class="code-tab-btn" onclick="switchCodeTab('code-native')">📱 React Native</button>
+            <button class="code-tab-btn" onclick="switchCodeTab('code-html')">🌐 Plain HTML / JS</button>
+            <button class="code-tab-btn" onclick="switchCodeTab('code-flutter')">💙 Flutter</button>
+          </div>
+
+          <!-- Code Panel: React -->
+          <div id="code-react" class="code-snippet-panel active">
+            <pre class="code-block">// 1. Install Leaflet & React-Leaflet
+// npm install leaflet react-leaflet
+
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+export default function EthiopiaMap() {
+  const tileUrl = "https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png";
+
+  return (
+    &lt;MapContainer center={[9.0105, 38.7612]} zoom={13} style={{ height: "400px", width: "100%" }}&gt;
+      &lt;TileLayer
+        url={tileUrl}
+        attribution='&copy; Open Ethiopia Map'
+      /&gt;
+      &lt;Marker position={[8.9806, 38.7578]}&gt;
+        &lt;Popup&gt;Meskel Square, Addis Ababa&lt;/Popup&gt;
+      &lt;/Marker&gt;
+    &lt;/MapContainer&gt;
+  );
+}</pre>
+          </div>
+
+          <!-- Code Panel: React Native -->
+          <div id="code-native" class="code-snippet-panel">
+            <pre class="code-block">// 1. Install react-native-maps
+// npm install react-native-maps
+
+import React from "react";
+import MapView, { UrlTile, Marker, Polyline } from "react-native-maps";
+import { StyleSheet, View } from "react-native";
+
+export default function MobileMap() {
+  const tileUrlTemplate = "https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png";
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: 9.0105,
+          longitude: 38.7612,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+      &gt;
+        &lt;UrlTile
+          urlTemplate={tileUrlTemplate}
+          maximumZ={19}
+          flipY={false}
+          zIndex={1}
+        /&gt;
+        &lt;Marker
+          coordinate={{ latitude: 8.9806, longitude: 38.7578 }}
+          title="Meskel Square"
+        /&gt;
+      &lt;/MapView&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  map: { width: "100%", height: "100%" },
+});</pre>
+          </div>
+
+          <!-- Code Panel: Plain HTML -->
+          <div id="code-html" class="code-snippet-panel">
+            <pre class="code-block">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Addis Ababa Map&lt;/title&gt;
+  &lt;link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /&gt;
+  &lt;script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"&gt;&lt;/script&gt;
+  &lt;style&gt;
+    #map { height: 500px; width: 100%; border-radius: 12px; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id="map"&gt;&lt;/div&gt;
+  &lt;script&gt;
+    const map = L.map('map').setView([9.0105, 38.7612], 13);
+    
+    // Use Open Ethiopia Map Tile API (styles: dark, light, voyager, osm)
+    L.tileLayer('https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; Open Ethiopia Map'
+    }).addTo(map);
+
+    L.marker([8.9806, 38.7578]).addTo(map)
+      .bindPopup('Meskel Square, Addis Ababa')
+      .openPopup();
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+          </div>
+
+          <!-- Code Panel: Flutter -->
+          <div id="code-flutter" class="code-snippet-panel">
+            <pre class="code-block">// 1. Add flutter_map to pubspec.yaml
+// dependencies:
+//   flutter_map: ^6.0.0
+//   latlong2: ^0.9.0
+
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
+class EthiopiaMapPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return FlutterMap(
+      options: MapOptions(
+        initialCenter: LatLng(9.0105, 38.7612),
+        initialZoom: 13.0,
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.example.ethiopiamap',
+        ),
+        MarkerLayer(
+          markers: [
+            Marker(
+              point: LatLng(8.9806, 38.7578),
+              width: 40,
+              height: 40,
+              child: Icon(Icons.location_on, color: Colors.red),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: INTERACTIVE API EXPLORER -->
     <section id="tab-playground" class="tab-panel">
       <div class="grid-2">
         <div>
           <h2 class="card-title">⚡ Interactive API Endpoints</h2>
           <p class="card-desc">Execute requests directly against the live backend and inspect results.</p>
 
+          <!-- GET /api/v1/map/tiles -->
+          <div class="endpoint-card open" id="ep-tiles">
+            <div class="endpoint-header" onclick="toggleEndpoint('ep-tiles')">
+              <div class="endpoint-path">
+                <span class="http-method http-get">GET</span>
+                <span>/api/v1/map/tiles/:style/:z/:x/:y.png</span>
+              </div>
+              <span class="badge badge-cyan">Map Tiles</span>
+            </div>
+            <div class="endpoint-body">
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Serves cached raster map tiles for web & mobile apps. Styles: <code>dark</code>, <code>light</code>, <code>voyager</code>, <code>osm</code>.</p>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Style</label>
+                  <select id="api_tile_style">
+                    <option value="dark">dark</option>
+                    <option value="voyager">voyager</option>
+                    <option value="light">light</option>
+                    <option value="osm">osm</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Sample Tile (Z / X / Y)</label>
+                  <input type="text" id="api_tile_coords" value="13/4978/3889" />
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="testMapTile()">🚀 Load Tile Preview</button>
+            </div>
+          </div>
+
           <!-- GET /api/v1/map/autocomplete -->
-          <div class="endpoint-card open" id="ep-autocomplete">
+          <div class="endpoint-card" id="ep-autocomplete">
             <div class="endpoint-header" onclick="toggleEndpoint('ep-autocomplete')">
               <div class="endpoint-path">
                 <span class="http-method http-get">GET</span>
@@ -797,7 +1056,7 @@ export function renderDocsHtml(): string {
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
             <h2 class="card-title" style="margin-bottom: 0;">📟 Live Response Output</h2>
-            <button class="btn btn-secondary btn-sm" onclick="copyResponse()">📋 Copy JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="copyResponse()">📋 Copy Output</button>
           </div>
           <div style="margin-bottom: 0.75rem; display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-dim);">
             <span>Status: <strong id="res-status" style="color: #fff;">-</strong></span>
@@ -805,36 +1064,9 @@ export function renderDocsHtml(): string {
             <span>Size: <strong id="res-size" style="color: #fff;">-</strong></span>
           </div>
           <pre class="code-block" id="responseConsole">// Click "Send Request" on any endpoint to view live output</pre>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 3: LIVE MAP & ROUTING SANDBOX -->
-    <section id="tab-sandbox" class="tab-panel">
-      <div class="card">
-        <h2 class="card-title">🗺️ Interactive Addis Ababa Navigation Sandbox</h2>
-        <p class="card-desc">Visual test ground for location geocoding, turn-by-turn routing steps, and landmark detection.</p>
-        
-        <div class="grid-2">
-          <div>
-            <div class="form-group">
-              <label>Search Places in Addis Ababa</label>
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="sandboxSearchInput" placeholder="Type landmark e.g. Edna Mall, Bole, Mexico..." oninput="debounceSearch()" />
-                <button class="btn btn-primary" onclick="executeSandboxSearch()">🔍 Search</button>
-              </div>
-            </div>
-
-            <div id="sandboxSearchResults" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
-              <div style="color: var(--text-dim); font-size: 0.875rem; text-align: center; padding: 2rem;">Search results will appear here</div>
-            </div>
-          </div>
-
-          <div>
-            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Route Simulation & Directions</h3>
-            <div id="routeDirectionsBox" class="code-block" style="min-height: 280px;">
-              // Search a location or click a preset to see turn-by-turn route breakdown
-            </div>
+          <div id="tileImagePreview" style="margin-top: 1rem; display: none; text-align: center;">
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Rendered PNG Tile Preview:</p>
+            <img id="tileImg" src="" style="border: 2px solid var(--primary); border-radius: 8px; width: 256px; height: 256px;" />
           </div>
         </div>
       </div>
@@ -971,15 +1203,15 @@ fetch("/api/v1/map/reverse-geocode?lat=9.0105&lng=38.7612")
   .then(res => res.json())
   .then(data => console.log(data.data.address));
 
-// 3. Create Saved Place
-fetch("/api/v1/map/saved-places", {
+// 3. Plan Turn-by-Turn Route
+fetch("/api/v1/map/route", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    userId: "user-123",
-    label: "Home",
-    latitude: 8.9892,
-    longitude: 38.7885
+    origin: { lat: 8.9806, lng: 38.7578 },
+    destination: { lat: 8.9774, lng: 38.7993 },
+    profile: "driving",
+    steps: true
   })
 });</pre>
           </div>
@@ -1040,6 +1272,10 @@ fetch("/api/v1/map/saved-places", {
   <!-- Client JavaScript -->
   <script>
     let currentSavedPlaces = [];
+    let leafletMap = null;
+    let currentTileLayer = null;
+    let currentRouteLine = null;
+    let mapMarkers = [];
 
     // Tab Switching
     function switchTab(tabId) {
@@ -1050,6 +1286,21 @@ fetch("/api/v1/map/saved-places", {
       if (target) target.classList.add('active');
 
       const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (tabId === 'tab-tiles' && leafletMap) {
+        setTimeout(() => leafletMap.invalidateSize(), 200);
+      }
+    }
+
+    function switchCodeTab(panelId) {
+      document.querySelectorAll('.code-snippet-panel').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.code-tab-btn').forEach(el => el.classList.remove('active'));
+      
+      const target = document.getElementById(panelId);
+      if (target) target.classList.add('active');
+
+      const activeBtn = Array.from(document.querySelectorAll('.code-tab-btn')).find(btn => btn.getAttribute('onclick').includes(panelId));
       if (activeBtn) activeBtn.classList.add('active');
     }
 
@@ -1073,6 +1324,98 @@ fetch("/api/v1/map/saved-places", {
       setTimeout(() => {
         toast.classList.remove('show');
       }, 3500);
+    }
+
+    // Initialize Leaflet Map
+    function initLeafletMap() {
+      if (leafletMap) return;
+      
+      leafletMap = L.map('liveLeafletMap').setView([9.0105, 38.7612], 13);
+      setTileLayerStyle('dark');
+
+      const meskelMarker = L.marker([8.9806, 38.7578]).addTo(leafletMap)
+        .bindPopup('<b>Meskel Square</b><br>Addis Ababa, Ethiopia');
+      mapMarkers.push(meskelMarker);
+
+      leafletMap.on('click', async (e) => {
+        const { lat, lng } = e.latlng;
+        showToast(\`Coordinates: \${lat.toFixed(4)}, \${lng.toFixed(4)}\`);
+
+        const clickMarker = L.marker([lat, lng]).addTo(leafletMap);
+        mapMarkers.push(clickMarker);
+
+        try {
+          const res = await fetch(\`/api/v1/map/reverse-geocode?lat=\${lat}&lng=\${lng}\`);
+          const data = await res.json();
+          const addr = data.data?.address?.formatted || 'Custom Location';
+          clickMarker.bindPopup(\`<b>\${addr}</b><br>Lat: \${lat.toFixed(4)}, Lng: \${lng.toFixed(4)}\`).openPopup();
+        } catch {
+          clickMarker.bindPopup(\`Lat: \${lat.toFixed(4)}, Lng: \${lng.toFixed(4)}\`).openPopup();
+        }
+      });
+    }
+
+    function setTileLayerStyle(style) {
+      if (!leafletMap) return;
+      if (currentTileLayer) {
+        leafletMap.removeLayer(currentTileLayer);
+      }
+      const tileUrl = \`/api/v1/map/tiles/\${style}/{z}/{x}/{y}.png\`;
+      currentTileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution: '&copy; Open Ethiopia Map'
+      }).addTo(leafletMap);
+      showToast(\`Switched map layer to "\${style}" style\`);
+    }
+
+    async function drawDemoRoute() {
+      if (!leafletMap) return;
+      showToast('Calculating route from Meskel Square to Bole Airport...');
+
+      try {
+        const res = await fetch('/api/v1/map/route', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: { lat: 8.9806, lng: 38.7578 },
+            destination: { lat: 8.9774, lng: 38.7993 },
+            profile: 'driving',
+            steps: true
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.data?.routes?.[0]?.geometry?.coordinates) {
+          const rawCoords = data.data.routes[0].geometry.coordinates;
+          const latLngs = rawCoords.map(c => [c[1], c[0]]);
+
+          if (currentRouteLine) leafletMap.removeLayer(currentRouteLine);
+
+          currentRouteLine = L.polyline(latLngs, {
+            color: '#6366f1',
+            weight: 5,
+            opacity: 0.9,
+            dashArray: '1, 6'
+          }).addTo(leafletMap);
+
+          L.marker([8.9774, 38.7993]).addTo(leafletMap).bindPopup('<b>Bole International Airport</b>');
+
+          leafletMap.fitBounds(currentRouteLine.getBounds(), { padding: [40, 40] });
+          showToast(\`Route calculated: \${data.data.routes[0].summary.distanceText} (\${data.data.routes[0].summary.durationText})\`);
+        }
+      } catch (err) {
+        showToast('Route calculation failed: ' + err.message, false);
+      }
+    }
+
+    function testMapTile() {
+      const style = document.getElementById('api_tile_style').value;
+      const coords = document.getElementById('api_tile_coords').value.trim();
+      const tileUrl = \`/api/v1/map/tiles/\${style}/\${coords}.png\`;
+
+      document.getElementById('tileImagePreview').style.display = 'block';
+      document.getElementById('tileImg').src = tileUrl;
+      displayResponse(200, 15, \`// Loaded map tile image from \${tileUrl}\`);
+      showToast(\`Tile loaded: \${tileUrl}\`);
     }
 
     // Set Form Coordinates Helper
@@ -1329,6 +1672,7 @@ fetch("/api/v1/map/saved-places", {
       const startTime = performance.now();
       const consoleEl = document.getElementById('responseConsole');
       consoleEl.textContent = '// Sending request to ' + url + ' ...';
+      document.getElementById('tileImagePreview').style.display = 'none';
 
       try {
         const res = await fetch(url, options);
@@ -1355,7 +1699,7 @@ fetch("/api/v1/map/saved-places", {
     function copyResponse() {
       const text = document.getElementById('responseConsole').textContent;
       navigator.clipboard.writeText(text);
-      showToast('Response copied to clipboard!');
+      showToast('Copied to clipboard!');
     }
 
     function testAutocomplete() {
@@ -1390,65 +1734,6 @@ fetch("/api/v1/map/saved-places", {
       executeApiCall('/health');
     }
 
-    // Sandbox Autocomplete & Directions
-    let searchDebounce;
-    function debounceSearch() {
-      clearTimeout(searchDebounce);
-      searchDebounce = setTimeout(executeSandboxSearch, 300);
-    }
-
-    async function executeSandboxSearch() {
-      const q = document.getElementById('sandboxSearchInput').value.trim();
-      if (!q) return;
-      const container = document.getElementById('sandboxSearchResults');
-      container.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 1rem;">Searching...</div>';
-
-      try {
-        const res = await fetch(\`/api/v1/map/autocomplete?q=\${encodeURIComponent(q)}&limit=6\`);
-        const result = await res.json();
-        if (!result.success || !result.data?.places?.length) {
-          container.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 1rem;">No places matched</div>';
-          return;
-        }
-
-        container.innerHTML = result.data.places.map(p => \`
-          <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.75rem; cursor: pointer;" onclick="selectSandboxPlace(\${p.latitude}, \${p.longitude}, '\${escapeHtml(p.name)}')">
-            <div style="font-weight: 600; color: #fff;">\${escapeHtml(p.name)}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">\${escapeHtml(p.address || '')}</div>
-            <div style="display: flex; gap: 0.4rem; margin-top: 0.3rem;">
-              <span class="badge badge-cyan">\${p.source || 'MAP'}</span>
-              <span style="font-size: 0.75rem; color: var(--text-dim);">\${Number(p.latitude).toFixed(4)}, \${Number(p.longitude).toFixed(4)}</span>
-            </div>
-          </div>
-        \`).join('');
-      } catch (err) {
-        container.innerHTML = \`<div style="color: #fb7185;">Error: \${err.message}</div>\`;
-      }
-    }
-
-    async function selectSandboxPlace(lat, lng, name) {
-      showToast(\`Selected "\${name}" (\${lat}, \${lng})\`);
-      const dirBox = document.getElementById('routeDirectionsBox');
-      dirBox.textContent = \`Calculating route from Meskel Square (8.9806, 38.7578) to \${name}...\`;
-
-      try {
-        const res = await fetch('/api/v1/map/route', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            origin: { lat: 8.9806, lng: 38.7578 },
-            destination: { lat: lat, lng: lng },
-            profile: 'driving',
-            steps: true
-          })
-        });
-        const data = await res.json();
-        dirBox.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        dirBox.textContent = \`Route computation error: \${err.message}\`;
-      }
-    }
-
     function escapeHtml(str) {
       if (!str) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1458,6 +1743,7 @@ fetch("/api/v1/map/saved-places", {
     window.addEventListener('DOMContentLoaded', () => {
       checkSystemHealth();
       loadSavedPlaces();
+      initLeafletMap();
     });
   </script>
 </body>
