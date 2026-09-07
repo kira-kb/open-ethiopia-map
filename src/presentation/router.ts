@@ -9,6 +9,8 @@ import { SavedPlacesController } from "./controllers/saved-places.controller";
 import { RouteSessionController } from "./controllers/route-session.controller";
 import { LocationIngestController } from "./controllers/location-ingest.controller";
 
+import { renderDocsHtml } from "./views/docs.page";
+
 export function createRouter(
   routeController: RouteController,
   autocompleteController: AutocompleteController,
@@ -22,20 +24,24 @@ export function createRouter(
 ): Router {
   const router = Router();
 
-  router.get("/", (_req, res) => {
-    res.json({
-      name: "Open Ethiopia Map & Routing Platform",
-      version: "1.0.0",
-      status: "operational",
-      docs: {
-        health: "/health",
-        autocomplete: "/api/v1/map/autocomplete?q={query}",
-        reverseGeocode: "/api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
-        nearby: "/api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
-        route: "POST /api/v1/map/route",
-        savedPlaces: "/api/v1/map/saved-places",
-      },
-    });
+  router.get("/", (req, res) => {
+    if (req.headers.accept && req.headers.accept.includes("application/json") && !req.headers.accept.includes("text/html")) {
+      res.json({
+        name: "Open Ethiopia Map & Routing Platform",
+        version: "1.0.0",
+        status: "operational",
+        docs: {
+          health: "/health",
+          autocomplete: "/api/v1/map/autocomplete?q={query}",
+          reverseGeocode: "/api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
+          nearby: "/api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
+          route: "POST /api/v1/map/route",
+          savedPlaces: "/api/v1/map/saved-places",
+        },
+      });
+      return;
+    }
+    res.type("html").send(renderDocsHtml());
   });
 
   router.post("/api/v1/map/route", routeController.plan.bind(routeController));
@@ -54,6 +60,7 @@ export function createRouter(
   }
 
   if (savedPlacesController) {
+    router.post("/api/v1/map/saved-places", savedPlacesController.create.bind(savedPlacesController));
     router.get("/api/v1/map/saved-places", savedPlacesController.list.bind(savedPlacesController));
     router.put("/api/v1/map/saved-places/:id", savedPlacesController.update.bind(savedPlacesController));
     router.delete("/api/v1/map/saved-places/:id", savedPlacesController.delete.bind(savedPlacesController));

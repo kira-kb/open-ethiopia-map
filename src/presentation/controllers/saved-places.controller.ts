@@ -4,6 +4,19 @@ import { IPlaceRepository, SavedPlaceRecord } from "../../domain/interfaces";
 import { Logger } from "../../domain/interfaces";
 import { errorResponse } from "../dto";
 
+export const CreateSavedPlaceSchema = z.object({
+  userId: z.string().min(1),
+  label: z.string().min(1),
+  name: z.string().optional(),
+  address: z.string().optional(),
+  locationType: z.string().optional(),
+  extraDetails: z.record(z.string(), z.unknown()).optional(),
+  city: z.string().optional(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  isDefault: z.boolean().optional().default(false),
+});
+
 export const UpdateSavedPlaceSchema = z.object({
   userId: z.string().min(1),
   label: z.string().optional(),
@@ -22,6 +35,26 @@ export class SavedPlacesController {
     private readonly logger?: Logger,
     private readonly invalidateUserCache?: (userId: string) => Promise<number>,
   ) {}
+
+  async create(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const parsed = CreateSavedPlaceSchema.parse(req.body);
+      const created = await this.placeRepo.saveSavedPlace(parsed as any);
+      this.logger?.info("Saved place created", { placeId: created.id, userId: parsed.userId });
+
+      if (this.invalidateUserCache) {
+        await this.invalidateUserCache(parsed.userId).catch(() => {});
+      }
+
+      res.status(201).json({ success: true, data: { place: created } });
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "issues" in err) {
+        res.status(400).json(errorResponse("VALIDATION_ERROR", "Invalid saved place data", err));
+        return;
+      }
+      next(err);
+    }
+  }
 
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -150,7 +150,11 @@ async function main(): Promise<void> {
   const locationIngestController = new LocationIngestController(logger, recommendationCache);
 
   const app = express();
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+    }),
+  );
   app.use(cors());
   app.use(express.json({ limit: "10mb" }));
   app.use(createRequestLogger(logger));
