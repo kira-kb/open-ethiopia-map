@@ -1374,8 +1374,8 @@ fetch("/api/v1/map/saved-places", {
       const originParts = document.getElementById('api_route_origin').value.split(',');
       const destParts = document.getElementById('api_route_dest').value.split(',');
       const payload = {
-        origin: { latitude: parseFloat(originParts[0]), longitude: parseFloat(originParts[1]) },
-        destination: { latitude: parseFloat(destParts[0]), longitude: parseFloat(destParts[1]) },
+        origin: { lat: parseFloat(originParts[0].trim()), lng: parseFloat(originParts[1].trim()) },
+        destination: { lat: parseFloat(destParts[0].trim()), lng: parseFloat(destParts[1].trim()) },
         profile: 'driving',
         steps: true
       };
@@ -1436,8 +1436,8 @@ fetch("/api/v1/map/saved-places", {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            origin: { latitude: 8.9806, longitude: 38.7578 },
-            destination: { latitude: lat, longitude: lng },
+            origin: { lat: 8.9806, lng: 38.7578 },
+            destination: { lat: lat, lng: lng },
             profile: 'driving',
             steps: true
           })
