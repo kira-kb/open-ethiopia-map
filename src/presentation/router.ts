@@ -22,6 +22,22 @@ export function createRouter(
 ): Router {
   const router = Router();
 
+  router.get("/", (_req, res) => {
+    res.json({
+      name: "Open Ethiopia Map & Routing Platform",
+      version: "1.0.0",
+      status: "operational",
+      docs: {
+        health: "/health",
+        autocomplete: "/api/v1/map/autocomplete?q={query}",
+        reverseGeocode: "/api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
+        nearby: "/api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
+        route: "POST /api/v1/map/route",
+        savedPlaces: "/api/v1/map/saved-places",
+      },
+    });
+  });
+
   router.post("/api/v1/map/route", routeController.plan.bind(routeController));
   router.get("/api/v1/map/autocomplete", autocompleteController.search.bind(autocompleteController));
   router.get("/api/v1/map/reverse-geocode", reverseGeocodeController.lookup.bind(reverseGeocodeController));
