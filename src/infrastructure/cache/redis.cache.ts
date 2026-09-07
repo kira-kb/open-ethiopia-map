@@ -5,33 +5,45 @@ import { config } from "../config";
 type RedisClient = import("ioredis").Redis;
 
 export class RedisCache implements ICache {
-  private client: RedisClient;
+  private client: RedisClient | null = null;
   private connected = false;
 
   constructor(
     private readonly logger: Logger,
     private readonly prefix: string = "map:",
   ) {
-    const Redis = require("ioredis").default;
-    this.client = new Redis(config.redis.url, {
-      retryStrategy: (times: number) => Math.min(times * 100, 3000),
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-    });
-    this.client.on("error", (err: Error) => {
-      this.logger.error("Redis cache error", { error: err.message });
-    });
-    this.client.on("connect", () => {
-      this.connected = true;
-    });
-    this.client.on("close", () => {
+    try {
+      const Redis = require("ioredis").default;
+      const client: RedisClient = new Redis(config.redis.url, {
+        enableOfflineQueue: false,
+        maxRetriesPerRequest: 0,
+        retryStrategy: () => null,
+        lazyConnect: true,
+        connectTimeout: 1500,
+      });
+      client.on("error", () => {
+        this.connected = false;
+      });
+      client.on("connect", () => {
+        this.connected = true;
+      });
+      client.on("close", () => {
+        this.connected = false;
+      });
+      this.client = client;
+    } catch {
+      this.client = null;
       this.connected = false;
-    });
+    }
   }
 
   async connect(): Promise<void> {
-    if (!this.connected) {
+    if (!this.client) return;
+    try {
       await this.client.connect();
+    } catch (err) {
+      this.connected = false;
+      this.logger.warn("Redis unavailable, running without cache", { error: (err as Error).message });
     }
   }
 
@@ -40,17 +52,18 @@ export class RedisCache implements ICache {
   }
 
   async get<T>(key: string): Promise<T | null> {
+    if (!this.connected || !this.client) return null;
     try {
       const raw = await this.client.get(this.key(key));
       if (!raw) return null;
       return JSON.parse(raw) as T;
-    } catch (err) {
-      this.logger.warn("Cache get failed", { key, error: (err as Error).message });
+    } catch {
       return null;
     }
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+    if (!this.connected || !this.client) return;
     try {
       const k = this.key(key);
       const serialized = JSON.stringify(value);
@@ -59,20 +72,22 @@ export class RedisCache implements ICache {
       } else {
         await this.client.set(k, serialized);
       }
-    } catch (err) {
-      this.logger.warn("Cache set failed", { key, error: (err as Error).message });
+    } catch {
+      // Gracefully ignore cache write failures
     }
   }
 
   async del(key: string): Promise<void> {
+    if (!this.connected || !this.client) return;
     try {
       await this.client.del(this.key(key));
-    } catch (err) {
-      this.logger.warn("Cache del failed", { key, error: (err as Error).message });
+    } catch {
+      // Ignore
     }
   }
 
   async delPattern(pattern: string): Promise<number> {
+    if (!this.connected || !this.client) return 0;
     try {
       const fullPattern = this.key(pattern);
       let cursor = "0";
@@ -87,17 +102,14 @@ export class RedisCache implements ICache {
           deleted += keys.length;
         }
       } while (cursor !== "0");
-      if (deleted > 0) {
-        this.logger.debug("Cache keys deleted by pattern", { pattern: fullPattern, count: deleted });
-      }
       return deleted;
-    } catch (err) {
-      this.logger.warn("Cache delPattern failed", { pattern, error: (err as Error).message });
+    } catch {
       return 0;
     }
   }
 
   async exists(key: string): Promise<boolean> {
+    if (!this.connected || !this.client) return false;
     try {
       const result = await this.client.exists(this.key(key));
       return result === 1;
@@ -107,6 +119,7 @@ export class RedisCache implements ICache {
   }
 
   async increment(key: string): Promise<number> {
+    if (!this.connected || !this.client) return 0;
     try {
       return await this.client.incr(this.key(key));
     } catch {

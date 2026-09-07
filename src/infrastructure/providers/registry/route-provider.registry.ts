@@ -125,8 +125,13 @@ export class RouteProviderRegistry implements IRouteProvider {
   private async tryProvider(name: string, request: RouteRequest): Promise<RouteResult> {
     const provider = this.providers.get(name);
     if (!provider) throw new Error(`Provider not registered: ${name}`);
-    if (!this.isHealthy(name)) throw new Error(`Provider ${name} is unhealthy`);
-    return provider.route(request);
+    const result = await provider.route(request);
+    const state = this.health.get(name);
+    if (state) {
+      state.healthy = true;
+      state.consecutiveFailures = 0;
+    }
+    return result;
   }
 
   private isHealthy(name: string): boolean {
@@ -156,32 +161,41 @@ export class RouteProviderRegistry implements IRouteProvider {
 
   async checkHealth(): Promise<Map<string, boolean>> {
     const results = new Map<string, boolean>();
-    for (const [name, provider] of this.providers) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
+    for (const [name] of this.providers) {
+      if (name === "osrm") {
+        const candidateUrls = [
+          config.routeProvider.osrm.baseUrl,
+          "https://router.project-osrm.org",
+        ].filter(Boolean);
 
-        const res = await fetch(
-          `${config.routeProvider.osrm.baseUrl}/route/v1/driving/38.7,9.0;38.8,9.1?overview=false`,
-          { signal: controller.signal },
-        );
-        clearTimeout(timeout);
-
-        const healthy = res.ok || res.status === 400;
-        results.set(name, healthy);
-        const state = this.health.get(name);
-        if (state) {
-          state.healthy = healthy;
-          state.lastCheckedAt = new Date();
-          if (healthy) state.consecutiveFailures = 0;
+        let osrmHealthy = false;
+        for (const baseUrl of candidateUrls) {
+          try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 2000);
+            const res = await fetch(
+              `${baseUrl}/route/v1/driving/38.7,9.0;38.8,9.1?overview=false`,
+              { signal: controller.signal },
+            );
+            clearTimeout(timeout);
+            if (res.ok || res.status === 400) {
+              osrmHealthy = true;
+              break;
+            }
+          } catch {
+            // Try next candidate
+          }
         }
-      } catch {
-        results.set(name, false);
-        const state = this.health.get(name);
+        results.set("osrm", osrmHealthy);
+        const state = this.health.get("osrm");
         if (state) {
-          state.healthy = false;
+          state.healthy = osrmHealthy;
           state.lastCheckedAt = new Date();
+          if (osrmHealthy) state.consecutiveFailures = 0;
         }
+      } else {
+        const state = this.health.get(name);
+        results.set(name, state?.healthy ?? false);
       }
     }
     return results;

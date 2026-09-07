@@ -19,28 +19,41 @@ export class OsrmRouteProvider implements IRouteProvider {
     const coordsStr = points.map((c) => `${c.longitude},${c.latitude}`).join(";");
     const profile = PROFILE_MAP[request.profile] || "driving";
 
-    const url = new URL(
-      `${config.routeProvider.osrm.baseUrl}/route/v1/${profile}/${coordsStr}`,
-    );
-    url.searchParams.set("overview", "full");
-    url.searchParams.set("geometries", "geojson");
-    url.searchParams.set("alternatives", String(request.alternatives || 0));
-    url.searchParams.set("steps", String(request.steps || true));
-    url.searchParams.set("annotations", String(request.annotations || false));
+    const candidateUrls = [
+      config.routeProvider.osrm.baseUrl,
+      "https://router.project-osrm.org",
+    ].filter(Boolean);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config.routeProvider.osrm.timeoutMs);
+    let lastError: Error | null = null;
 
-    try {
-      const res = await fetch(url.toString(), { signal: controller.signal });
-      if (!res.ok) {
-        throw new Error(`OSRM returned ${res.status}: ${res.statusText}`);
+    for (const baseUrl of candidateUrls) {
+      const url = new URL(
+        `${baseUrl}/route/v1/${profile}/${coordsStr}`,
+      );
+      url.searchParams.set("overview", "full");
+      url.searchParams.set("geometries", "geojson");
+      url.searchParams.set("alternatives", String(request.alternatives || 0));
+      url.searchParams.set("steps", String(request.steps ?? true));
+      url.searchParams.set("annotations", String(request.annotations || false));
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), config.routeProvider.osrm.timeoutMs);
+
+      try {
+        const res = await fetch(url.toString(), { signal: controller.signal });
+        if (res.ok) {
+          const raw = await res.json();
+          const routes = this.mapper.map(raw, this.name);
+          return { routes, provider: this.name };
+        }
+        lastError = new Error(`OSRM (${baseUrl}) returned ${res.status}: ${res.statusText}`);
+      } catch (err) {
+        lastError = err as Error;
+      } finally {
+        clearTimeout(timeout);
       }
-      const raw = await res.json();
-      const routes = this.mapper.map(raw, this.name);
-      return { routes, provider: this.name };
-    } finally {
-      clearTimeout(timeout);
     }
+
+    throw lastError || new Error("OSRM routing failed");
   }
 }

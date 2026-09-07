@@ -52,21 +52,31 @@ export class RedisEventBridge {
 
     try {
       this.subscriber = new Redis(config.redis.url, {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: true,
-        lazyConnect: false,
+        maxRetriesPerRequest: 0,
+        enableOfflineQueue: false,
+        retryStrategy: () => null,
+        lazyConnect: true,
+        connectTimeout: 1500,
       });
 
-      this.subscriber.subscribe("delivery:lifecycle", (err) => {
-        if (err) {
-          this.logger.error("RedisEventBridge failed to subscribe to delivery:lifecycle", {
-            error: err.message,
-          });
-        } else {
-          this.logger.info("RedisEventBridge subscribed to delivery:lifecycle");
-          this.isRunning = true;
-        }
+      this.subscriber.on("error", () => {
+        // Silently ignore if Redis host is not reachable
       });
+
+      this.subscriber.connect()
+        .then(() => {
+          this.subscriber?.subscribe("delivery:lifecycle", (err) => {
+            if (err) {
+              this.logger.warn("RedisEventBridge subscription failed", { error: err.message });
+            } else {
+              this.logger.info("RedisEventBridge subscribed to delivery:lifecycle");
+              this.isRunning = true;
+            }
+          });
+        })
+        .catch((err) => {
+          this.logger.warn("RedisEventBridge disabled (Redis unavailable)", { error: (err as Error).message });
+        });
 
       this.subscriber.on("message", async (channel: string, message: string) => {
         if (channel !== "delivery:lifecycle") return;
@@ -79,12 +89,8 @@ export class RedisEventBridge {
           });
         }
       });
-
-      this.subscriber.on("error", (err) => {
-        this.logger.error("RedisEventBridge subscriber error", { error: err.message });
-      });
     } catch (err) {
-      this.logger.error("Failed to initialize RedisEventBridge", {
+      this.logger.warn("Failed to initialize RedisEventBridge", {
         error: (err as Error).message,
       });
     }
