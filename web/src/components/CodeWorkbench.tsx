@@ -147,64 +147,59 @@ export function CodeWorkbench() {
   }
 
   return (
-    <section id="sdks" style={{ maxWidth: "1280px", margin: "0 auto", padding: "4rem 1.5rem" }}>
-      <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-        <span className="badge badge-cyan" style={{ marginBottom: "0.75rem" }}>
-          Client Libraries & SDKs
-        </span>
-        <h2 style={{ fontSize: "2.3rem", fontWeight: 800 }}>
+    <section id="sdks" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 1.5rem" }}>
+      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+        <h2 style={{ fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.025em", color: "#ffffff" }}>
           Multi-Platform SDK Integration
         </h2>
-        <p style={{ color: "var(--text-secondary)", maxWidth: "600px", margin: "0.5rem auto 0", fontSize: "0.95rem" }}>
-          Render vector tiles and execute routing queries across Web, Flutter, React Native, iOS, Android, and backend services.
+        <p style={{ color: "var(--muted-foreground)", maxWidth: "580px", margin: "0.5rem auto 0", fontSize: "0.95rem" }}>
+          Render vector & raster tiles and execute routing queries across Web, Flutter, React Native, iOS, Android, and backend services.
         </p>
       </div>
 
       <div
-        className="glass-panel"
+        className="bento-card"
         style={{
-          borderRadius: "var(--radius-xl)",
+          borderRadius: "var(--radius-lg)",
           overflow: "hidden",
-          border: "1px solid var(--border-card)",
+          border: "1px solid var(--border)",
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
         }}
       >
         {/* Terminal / IDE Header */}
-        <div className="terminal-header">
-          <div className="window-dots">
-            <span className="window-dot red" />
-            <span className="window-dot yellow" />
-            <span className="window-dot green" />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div
+          style={{
+            padding: "0.65rem 1rem",
+            background: "#09090b",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.5rem",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
             {(Object.keys(CODE_SNIPPETS) as Array<keyof typeof CODE_SNIPPETS>).map((tabKey) => (
               <button
                 key={tabKey}
                 onClick={() => setActiveTab(tabKey)}
-                style={{
-                  background: activeTab === tabKey ? "rgba(255, 255, 255, 0.08)" : "transparent",
-                  border: activeTab === tabKey ? "1px solid rgba(255, 255, 255, 0.15)" : "1px solid transparent",
-                  borderRadius: "6px",
-                  color: activeTab === tabKey ? "#ffffff" : "var(--text-muted)",
-                  fontSize: "0.75rem",
-                  padding: "0.3rem 0.65rem",
-                  cursor: "pointer",
-                  fontFamily: "var(--font-mono)",
-                }}
+                className={`btn-mapcn btn-mapcn-xs ${activeTab === tabKey ? "btn-mapcn-primary" : "btn-mapcn-ghost"}`}
+                style={{ fontSize: "0.75rem" }}
               >
                 {tabKey === "react" ? "React / Next.js" : tabKey === "flutter" ? "Flutter" : tabKey === "native" ? "React Native" : "cURL"}
               </button>
             ))}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
-            <span style={{ fontSize: "0.725rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }}>
               {snippet.install}
             </span>
             <button
               onClick={copyCode}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: "0.725rem", padding: "0.25rem 0.65rem" }}
+              className="btn-mapcn btn-mapcn-outline btn-mapcn-xs"
+              style={{ fontSize: "0.725rem", padding: "0 0.65rem" }}
             >
               {copied ? "✓ Copied" : "Copy"}
             </button>
@@ -214,8 +209,8 @@ export function CodeWorkbench() {
         {/* Code Content */}
         <div
           style={{
-            padding: "1.5rem",
-            background: "#050813",
+            padding: "1.25rem 1.5rem",
+            background: "#0d1117",
             overflowX: "auto",
             maxHeight: "440px",
           }}

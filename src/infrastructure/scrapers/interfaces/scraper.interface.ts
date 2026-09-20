@@ -4,6 +4,9 @@ export interface ScraperOptions {
   headless?: boolean;
   maxPages?: number;
   delayMs?: number;
+  category?: string;
+  city?: string;
+  limit?: number;
 }
 
 export interface IScraper {

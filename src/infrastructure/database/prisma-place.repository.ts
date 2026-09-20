@@ -31,25 +31,40 @@ export class PrismaPlaceRepository implements IPlaceRepository {
   }
 
   async search(options: SearchOptions): Promise<Place[]> {
-    const q = options.query.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const rawQuery = options.query.trim();
+    const q = rawQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const limit = Math.min(options.limit || 8, 25);
-    const likePattern = `%${q}%`;
+    const likePattern = `%${rawQuery}%`;
+    const normLikePattern = `%${q}%`;
 
     const rows = await this.prisma.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT * FROM "Place"
-       WHERE "normalizedName" ILIKE $1
-          OR EXISTS (SELECT 1 FROM unnest("aliases") AS a WHERE a ILIKE $1)
-          OR to_tsvector('simple', "normalizedName") @@ plainto_tsquery('simple', $2)
+       WHERE "displayName" ILIKE $1
+          OR "officialName" ILIKE $1
+          OR "normalizedName" ILIKE $2
+          OR "formattedAddress" ILIKE $1
+          OR "subcity" ILIKE $1
+          OR "city" ILIKE $1
+          OR EXISTS (SELECT 1 FROM unnest("aliases") AS a WHERE a ILIKE $1 OR a ILIKE $2)
+          OR to_tsvector('simple', COALESCE("normalizedName", '') || ' ' || COALESCE("displayName", '') || ' ' || COALESCE("officialName", '') || ' ' || COALESCE("subcity", '')) @@ plainto_tsquery('simple', $3)
        ORDER BY
-          CASE WHEN LOWER("normalizedName") = $2 THEN 0 ELSE 1 END,
+          CASE 
+            WHEN LOWER(COALESCE("displayName", "officialName", "normalizedName")) = LOWER($4) THEN 0
+            WHEN LOWER("normalizedName") = $3 THEN 0
+            WHEN "displayName" ILIKE $4 || '%' OR "officialName" ILIKE $4 || '%' THEN 1
+            WHEN "normalizedName" ILIKE $3 || '%' THEN 1
+            ELSE 2 
+          END,
           "recommendationConfidence" DESC,
           "confidence" DESC,
           "popularity" DESC,
           "searchCount" DESC,
           "selectionCount" DESC
-       LIMIT $3`,
+       LIMIT $5`,
       likePattern,
+      normLikePattern,
       q,
+      rawQuery,
       limit,
     );
 
@@ -124,12 +139,20 @@ export class PrismaPlaceRepository implements IPlaceRepository {
 
   async save(place: Place): Promise<Place> {
     const data = this.toPrisma(place);
-    const row = await this.prisma.place.upsert({
-      where: { id: place.id || "__new__" },
-      update: data as never,
-      create: data as never,
-    });
-    return this.toDomain(row as unknown as Record<string, unknown>);
+    if (place.id && place.id !== "__new__") {
+      const row = await this.prisma.place.upsert({
+        where: { id: place.id },
+        update: data as never,
+        create: { ...data, id: place.id } as never,
+      });
+      return this.toDomain(row as unknown as Record<string, unknown>);
+    } else {
+      const { id, ...createData } = data;
+      const row = await this.prisma.place.create({
+        data: createData as never,
+      });
+      return this.toDomain(row as unknown as Record<string, unknown>);
+    }
   }
 
   async upsertMany(places: Place[]): Promise<Place[]> {
@@ -312,7 +335,7 @@ export class PrismaPlaceRepository implements IPlaceRepository {
       officialName: (row.officialName as string) || undefined,
       displayName: (row.displayName as string) || undefined,
       shortName: (row.shortName as string) || undefined,
-      name: row.name as string,
+      name: ((row.displayName || row.officialName || row.name || row.normalizedName) as string) || "Unknown",
       normalizedName: row.normalizedName as string,
       aliases: (row.aliases as string[]) || [],
       formattedAddress: (row.formattedAddress as string) || undefined,
@@ -355,10 +378,9 @@ export class PrismaPlaceRepository implements IPlaceRepository {
   private toPrisma(place: Place): Record<string, unknown> {
     return {
       id: place.id || undefined,
-      officialName: place.officialName || null,
-      displayName: place.displayName || null,
+      officialName: place.officialName || place.name || null,
+      displayName: place.displayName || place.name || null,
       shortName: place.shortName || null,
-      name: place.name,
       normalizedName: place.normalizedName,
       aliases: place.aliases,
       formattedAddress: place.formattedAddress || null,

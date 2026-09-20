@@ -118,6 +118,22 @@ export class RouteProviderRegistry implements IRouteProvider {
         }
       }
 
+      const emergency = this.providers.get("emergency-fallback");
+      if (emergency) {
+        this.logger.warn("All external providers failed. Activating emergency fallback route provider.");
+        const result = await emergency.route(request);
+        this.eventBus.publish(
+          new RouteProviderChanged(
+            "",
+            "",
+            primary,
+            emergency.name,
+            ReplanReason.PROVIDER_FAILOVER,
+          ),
+        ).catch(() => {});
+        return result;
+      }
+
       throw new Error(`All route providers failed. Primary: ${primary}, Fallback: ${fallback}`);
     }
   }

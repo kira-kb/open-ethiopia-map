@@ -32,12 +32,27 @@ export class ReplanRouteSessionUseCase {
     const session = await this.sessionRepo.findSessionById(command.sessionId);
     if (!session) throw new Error("Route session not found");
 
-    const newVersion = session.currentRevision + 1;
+    if (session.status === "completed" || session.status === "cancelled") {
+      throw new Error(`Cannot replan a ${session.status} route session`);
+    }
+
     const origin = command.origin || { lat: session.origin.latitude, lng: session.origin.longitude };
     const destination = command.destination || { lat: session.destination.latitude, lng: session.destination.longitude };
     const profile = command.profile || session.profile;
     const oldProvider = session.provider;
 
+    // Rate-limit identical rapid replans within 2 seconds
+    const lastRev = session.revisions && session.revisions.length > 0
+      ? session.revisions[session.revisions.length - 1]
+      : null;
+    if (lastRev && (Date.now() - new Date(lastRev.createdAt).getTime()) < 2000) {
+      this.logger.info("Ignoring duplicate rapid replan request within debounce window", {
+        sessionId: command.sessionId,
+      });
+      return { session, revision: lastRev };
+    }
+
+    const newVersion = session.currentRevision + 1;
     const start = Date.now();
     const result = await this.planRoute.execute({
       origin,

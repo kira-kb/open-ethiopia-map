@@ -14,6 +14,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../node_modules/.prisma/map-client";
 import { OsrmRouteProvider } from "./infrastructure/providers/route/osrm.provider";
 import { GraphHopperRouteProvider } from "./infrastructure/providers/route/graphhopper.provider";
+import { EmergencyFallbackRouteProvider } from "./infrastructure/providers/route/emergency-fallback.provider";
+import { ScraperService } from "./infrastructure/scrapers/scraper.service";
 import { PhotonGeocodeProvider } from "./infrastructure/providers/geocode/photon.provider";
 import { RouteProviderRegistry } from "./infrastructure/providers/registry/route-provider.registry";
 import { GeocodeProviderRegistry } from "./infrastructure/providers/registry/geocode-provider.registry";
@@ -31,7 +33,7 @@ import { AutocompleteController } from "./presentation/controllers/autocomplete.
 import { ReverseGeocodeController } from "./presentation/controllers/reverse-geocode.controller";
 import { NearbyController } from "./presentation/controllers/nearby.controller";
 import { HealthController } from "./presentation/controllers/health.controller";
-import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController } from "./presentation/controllers";
+import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController, ScraperController } from "./presentation/controllers";
 import { createRouter } from "./presentation/router";
 import { createErrorHandler } from "./presentation/middleware/error-handler";
 import { createRequestLogger } from "./presentation/middleware/request-logger";
@@ -69,9 +71,11 @@ async function main(): Promise<void> {
   // ── Providers ─────────────────────────────────────────────────
   const osrmProvider = new OsrmRouteProvider();
   const graphhopperProvider = new GraphHopperRouteProvider();
+  const emergencyFallbackProvider = new EmergencyFallbackRouteProvider();
   const routeRegistry = new RouteProviderRegistry(logger, metrics, eventBus);
   routeRegistry.register(osrmProvider);
   routeRegistry.register(graphhopperProvider);
+  routeRegistry.register(emergencyFallbackProvider);
 
   const photonProvider = new PhotonGeocodeProvider();
   const geocodeRegistry = new GeocodeProviderRegistry(logger);
@@ -149,6 +153,8 @@ async function main(): Promise<void> {
   const savedPlacesController = new SavedPlacesController(placeRepo, logger, invalidateUserCache);
   const locationIngestController = new LocationIngestController(logger, recommendationCache);
   const tileController = new TileController(logger);
+  const scraperService = new ScraperService(placeRepo, logger);
+  const scraperController = new ScraperController(scraperService, logger);
 
   const app = express();
   app.use(
@@ -171,6 +177,7 @@ async function main(): Promise<void> {
     routeSessionController,
     locationIngestController,
     tileController,
+    scraperController,
   );
   app.use(router);
   app.use(createErrorHandler(logger));

@@ -8,3 +8,4 @@ export { SavedPlacesController } from "./saved-places.controller";
 export { RouteSessionController } from "./route-session.controller";
 export { LocationIngestController } from "./location-ingest.controller";
 export { TileController } from "./tile.controller";
+export { ScraperController } from "./scraper.controller";

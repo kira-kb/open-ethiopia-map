@@ -74,68 +74,73 @@ const ENDPOINTS = [
 
 export function ApiEndpoints() {
   return (
-    <section id="reference" style={{ maxWidth: "1280px", margin: "0 auto", padding: "4rem 1.5rem" }}>
-      <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <span className="badge badge-green" style={{ marginBottom: "0.75rem" }}>
-          RESTful Endpoints
-        </span>
-        <h2 style={{ fontSize: "2.3rem", fontWeight: 800 }}>
-          API Reference & Endpoints
-        </h2>
-        <p style={{ color: "var(--text-secondary)", maxWidth: "600px", margin: "0.5rem auto 0", fontSize: "0.95rem" }}>
-          Clean JSON payloads, standard HTTP response codes, and CORS-enabled for web and mobile frontends.
-        </p>
+    <section id="reference" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 1.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem", marginBottom: "2rem" }}>
+        <div>
+          <h2 style={{ fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.025em", color: "#ffffff" }}>
+            API Reference
+          </h2>
+          <p style={{ color: "var(--muted-foreground)", maxWidth: "520px", marginTop: "0.4rem", fontSize: "0.95rem" }}>
+            Standard REST endpoints, JSON responses, and CORS-enabled for web and mobile frontends.
+          </p>
+        </div>
+        <a
+          href="/docs"
+          className="btn-mapcn btn-mapcn-outline"
+          style={{ fontSize: "0.85rem" }}
+        >
+          View Full Interactive Docs &rarr;
+        </a>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "1.5rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1rem" }}>
         {ENDPOINTS.map((ep, i) => (
           <div
             key={i}
-            className="glass-panel"
+            className="bento-card"
             style={{
-              padding: "1.5rem",
-              borderRadius: "var(--radius-lg)",
-              border: "1px solid var(--border-card)",
+              padding: "1.25rem",
+              background: "linear-gradient(180deg, rgba(17, 24, 39, 0.5) 0%, rgba(9, 9, 11, 0.8) 100%)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
             }}
           >
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.65rem" }}>
                 <span
                   style={{
                     fontSize: "0.68rem",
-                    fontWeight: 800,
-                    padding: "0.2rem 0.5rem",
+                    fontWeight: 700,
+                    padding: "0.15rem 0.45rem",
                     borderRadius: "4px",
                     background: ep.method === "GET" ? "rgba(16, 185, 129, 0.15)" : "rgba(56, 189, 248, 0.15)",
                     color: ep.method === "GET" ? "#34d399" : "#38bdf8",
-                    border: `1px solid ${ep.method === "GET" ? "rgba(16, 185, 129, 0.3)" : "rgba(56, 189, 248, 0.3)"}`,
+                    border: `1px solid ${ep.method === "GET" ? "rgba(16, 185, 129, 0.25)" : "rgba(56, 189, 248, 0.25)"}`,
                   }}
                 >
                   {ep.method}
                 </span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", color: "#ffffff", fontWeight: 600 }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.825rem", color: "#ffffff", fontWeight: 500 }}>
                   {ep.path}
                 </span>
               </div>
 
-              <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "0.4rem" }}>
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 600, marginBottom: "0.35rem", color: "#ffffff" }}>
                 {ep.title}
               </h3>
 
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", lineHeight: 1.5, marginBottom: "1rem" }}>
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.825rem", lineHeight: 1.5, marginBottom: "0.85rem" }}>
                 {ep.desc}
               </p>
             </div>
 
             <div
               style={{
-                background: "rgba(5, 8, 17, 0.9)",
-                border: "1px solid var(--border-subtle)",
+                background: "#09090b",
+                border: "1px solid var(--border)",
                 borderRadius: "var(--radius-sm)",
-                padding: "0.65rem 0.85rem",
+                padding: "0.65rem 0.75rem",
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.72rem",
                 color: "#94a3b8",

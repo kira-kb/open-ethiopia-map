@@ -2,25 +2,22 @@ import React from "react";
 
 export function Architecture() {
   return (
-    <section id="architecture" style={{ maxWidth: "1280px", margin: "0 auto", padding: "4rem 1.5rem" }}>
-      <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <span className="badge badge-cyan" style={{ marginBottom: "0.75rem" }}>
-          Clean Architecture
-        </span>
-        <h2 style={{ fontSize: "2.3rem", fontWeight: 800 }}>
-          Layered Microservice Design
+    <section id="architecture" style={{ maxWidth: "1200px", margin: "0 auto", padding: "3rem 1.5rem" }}>
+      <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+        <h2 style={{ fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.025em", color: "#ffffff" }}>
+          Clean Architecture & DDD
         </h2>
-        <p style={{ color: "var(--text-secondary)", maxWidth: "600px", margin: "0.5rem auto 0", fontSize: "0.95rem" }}>
+        <p style={{ color: "var(--muted-foreground)", maxWidth: "560px", margin: "0.5rem auto 0", fontSize: "0.95rem" }}>
           Strict Domain-Driven Design (DDD) with provider agnosticism, circuit breakers, and zero vendor lock-in.
         </p>
       </div>
 
       <div
-        className="glass-panel"
+        className="bento-card"
         style={{
-          borderRadius: "var(--radius-xl)",
-          padding: "2.5rem 2rem",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          borderRadius: "var(--radius-lg)",
+          padding: "2rem 1.75rem",
+          border: "1px solid var(--border)",
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem" }}>

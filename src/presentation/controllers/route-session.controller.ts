@@ -101,6 +101,10 @@ export class RouteSessionController {
         res.status(400).json(errorResponse("VALIDATION_ERROR", "Invalid request", err));
         return;
       }
+      if (err instanceof Error && err.message.includes("Cannot replan")) {
+        res.status(409).json(errorResponse("CONFLICT", err.message));
+        return;
+      }
       next(err);
     }
   }

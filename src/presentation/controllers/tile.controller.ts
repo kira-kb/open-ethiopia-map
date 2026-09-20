@@ -1,12 +1,22 @@
+import fs from "fs";
+import path from "path";
 import { Request, Response, NextFunction } from "express";
 import { Logger } from "../../domain/interfaces";
 
+// 100% Free, Zero API Keys, Unmetered, No Watermarks
 const TILE_SERVERS: Record<string, (z: string, x: string, y: string) => string> = {
-  dark: (z, x, y) => `https://a.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`,
-  light: (z, x, y) => `https://a.basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`,
-  voyager: (z, x, y) => `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`,
+  // Esri Canvas Dark Gray (Clean dark cartography, zero watermark, no API key)
+  dark: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`,
+  // Esri Canvas Light Gray (Clean minimal light cartography, zero watermark, no API key)
+  light: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`,
+  // Esri World Street Map (High-resolution global & Ethiopian road arteries, no API key)
+  voyager: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
+  street: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
+  // OpenStreetMap Official (Zero watermark, community open-source, no API key)
   osm: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
   standard: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+  // OpenTopoMap (Contour elevation & topography, no API key)
+  topo: (z, x, y) => `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`,
 };
 
 export class TileController {
@@ -16,7 +26,7 @@ export class TileController {
     try {
       const z = String(req.params.z || "");
       const x = String(req.params.x || "");
-      const y = String(req.params.y || "").replace(".png", "");
+      const y = String(req.params.y || "").replace(".png", "").replace(".jpg", "");
       const style = String(req.params.style || req.query.style || "dark").toLowerCase();
 
       // Validate tile coordinates
@@ -31,6 +41,19 @@ export class TileController {
         return;
       }
 
+      // ── Priority 1: Self-Rendered Local Custom Tiles ───────────────
+      // If the platform renders its own tiles, serve directly from data/tiles/{style}/{z}/{x}/{y}.png
+      const localCustomTile = path.join(process.cwd(), "data", "tiles", style, z, x, `${y}.png`);
+      if (fs.existsSync(localCustomTile)) {
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("X-Tile-Source", "self-hosted-local");
+        fs.createReadStream(localCustomTile).pipe(res);
+        return;
+      }
+
+      // ── Priority 2: 100% Free Public Tile Mirrors (No API Key) ────
       const tileUrlBuilder = TILE_SERVERS[style] || TILE_SERVERS.dark;
       const targetUrl = tileUrlBuilder(z, x, y);
 
@@ -42,7 +65,7 @@ export class TileController {
           signal: controller.signal,
           headers: {
             "User-Agent": "OpenEthiopiaMap/1.0 (https://open-ethiopia-map-isf6.vercel.app)",
-            Accept: "image/png,image/*",
+            Accept: "image/png,image/jpeg,image/*",
           },
         });
 
@@ -52,10 +75,12 @@ export class TileController {
         }
 
         const buffer = await response.arrayBuffer();
+        const contentType = response.headers.get("content-type") || "image/png";
 
-        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Content-Type", contentType);
         res.setHeader("Cache-Control", "public, max-age=604800, immutable");
         res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("X-Tile-Source", "open-free-mirror");
         res.send(Buffer.from(buffer));
       } finally {
         clearTimeout(timeout);

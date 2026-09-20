@@ -9,8 +9,7 @@ import { SavedPlacesController } from "./controllers/saved-places.controller";
 import { RouteSessionController } from "./controllers/route-session.controller";
 import { LocationIngestController } from "./controllers/location-ingest.controller";
 import { TileController } from "./controllers/tile.controller";
-import { renderDocsHtml } from "./views/docs.page";
-
+import { ScraperController } from "./controllers/scraper.controller";
 export function createRouter(
   routeController: RouteController,
   autocompleteController: AutocompleteController,
@@ -22,29 +21,42 @@ export function createRouter(
   routeSessionController?: RouteSessionController,
   locationIngestController?: LocationIngestController,
   tileController?: TileController,
+  scraperController?: ScraperController,
 ): Router {
   const router = Router();
 
   router.get("/", (req, res) => {
-    if (req.headers.accept && req.headers.accept.includes("application/json") && !req.headers.accept.includes("text/html")) {
-      res.json({
-        name: "Open Ethiopia Map & Routing Platform",
-        version: "1.0.0",
-        status: "operational",
-        docs: {
-          health: "/health",
-          autocomplete: "/api/v1/map/autocomplete?q={query}",
-          reverseGeocode: "/api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
-          nearby: "/api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
-          route: "POST /api/v1/map/route",
-          styles: "/api/v1/map/styles/{style}.json (MapLibre Style Spec v8)",
-          tiles: "/api/v1/map/tiles/{style}/{z}/{x}/{y}.png (styles: dark, light, voyager, osm)",
-          savedPlaces: "/api/v1/map/saved-places",
+    res.json({
+      name: "Open Ethiopia Map & Routing Platform",
+      version: "1.0.0",
+      status: "operational",
+      description: "Canonical routing, geospatial intelligence, and MapLibre tile authority for Ethiopia.",
+      documentation: "https://open-ethiopia-map.vercel.app/docs",
+      endpoints: {
+        health: "GET /health",
+        route: "POST /api/v1/map/route",
+        autocomplete: "GET /api/v1/map/autocomplete?q={query}&limit={limit}",
+        reverseGeocode: "GET /api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
+        nearby: "GET /api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
+        styles: "GET /api/v1/map/styles/:style.json (dark, light, voyager, osm, topo)",
+        tiles: "GET /api/v1/map/tiles/:style/:z/:x/:y.png",
+        routeSessions: {
+          create: "POST /api/v1/map/routes/create",
+          get: "GET /api/v1/map/routes/session/:id",
+          replan: "POST /api/v1/map/routes/session/:id/replan",
+          close: "POST /api/v1/map/routes/session/:id/close",
+          checkDeviation: "POST /api/v1/map/routes/session/:id/check-deviation",
+          history: "GET /api/v1/map/routes/session/:id/history",
         },
-      });
-      return;
-    }
-    res.type("html").send(renderDocsHtml());
+        savedPlaces: "GET, POST, PUT, DELETE /api/v1/map/saved-places",
+        enrichment: "POST /api/v1/map/location-enrichment",
+        scrapers: {
+          list: "GET /api/v1/map/scrapers",
+          run: "POST /api/v1/map/scrapers/run",
+          status: "GET /api/v1/map/scrapers/status",
+        },
+      },
+    });
   });
 
   router.post("/api/v1/map/route", routeController.plan.bind(routeController));
@@ -86,6 +98,12 @@ export function createRouter(
     router.post("/api/v1/map/routes/session/:id/close", routeSessionController.close.bind(routeSessionController));
     router.post("/api/v1/map/routes/session/:id/check-deviation", routeSessionController.checkDeviation.bind(routeSessionController));
     router.get("/api/v1/map/routes/session/:id/history", routeSessionController.getHistory.bind(routeSessionController));
+  }
+
+  if (scraperController) {
+    router.get("/api/v1/map/scrapers", scraperController.list.bind(scraperController));
+    router.post("/api/v1/map/scrapers/run", scraperController.run.bind(scraperController));
+    router.get("/api/v1/map/scrapers/status", scraperController.status.bind(scraperController));
   }
 
   return router;

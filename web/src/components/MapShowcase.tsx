@@ -40,6 +40,29 @@ export function MapShowcase() {
   }>({});
   const [sessionLoading, setSessionLoading] = useState(false);
 
+  // Regional Ethiopian Cities for Quick Switcher
+  const ETHIOPIA_CITIES = [
+    { name: "Addis Ababa", amharic: "አዲስ አበባ", coords: [38.7612, 9.0105] as [number, number], zoom: 12.2 },
+    { name: "Hawassa", amharic: "ሐዋሳ", coords: [38.4764, 7.0504] as [number, number], zoom: 12.8 },
+    { name: "Dire Dawa", amharic: "ድሬዳዋ", coords: [41.8661, 9.5931] as [number, number], zoom: 12.8 },
+    { name: "Bahir Dar", amharic: "ባሕር ዳር", coords: [37.3908, 11.5742] as [number, number], zoom: 12.8 },
+    { name: "Adama", amharic: "አዳማ", coords: [39.2689, 8.5414] as [number, number], zoom: 12.8 },
+    { name: "Bishoftu", amharic: "ቢሾፍቱ", coords: [38.9785, 8.7523] as [number, number], zoom: 12.8 },
+  ];
+  const [activeCity, setActiveCity] = useState("Addis Ababa");
+
+  function flyToCity(city: typeof ETHIOPIA_CITIES[0]) {
+    setActiveCity(city.name);
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: city.coords,
+        zoom: city.zoom,
+        essential: true,
+        duration: 1800,
+      });
+    }
+  }
+
   // Expose global callback helpers for map popups
   useEffect(() => {
     (window as any).__setStartPoint = (lat: number, lng: number, name: string) => {
@@ -562,53 +585,194 @@ export function MapShowcase() {
   }
 
   return (
-    <section id="playground" style={{ maxWidth: "1280px", margin: "0 auto", padding: "3rem 1.5rem" }}>
-      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <span className="badge badge-cyan" style={{ marginBottom: "0.75rem" }}>
-          Interactive MapLibre Playground
-        </span>
-        <h2 style={{ fontSize: "2.2rem", fontWeight: 800 }}>
-          Interactive GIS & Routing Playground
-        </h2>
-        <p style={{ color: "var(--text-secondary)", maxWidth: "660px", margin: "0.5rem auto 0", fontSize: "0.95rem" }}>
-          Hardware-accelerated vector rendering, multi-modal routing profiles, turn-by-turn navigation, and canonical route session simulation.
-        </p>
+    <section id="sandbox" style={{ maxWidth: "1200px", margin: "0 auto", padding: "1rem 1.5rem 4rem" }}>
+      {/* Anchor for backward compatibility */}
+      <div id="playground" style={{ position: "relative", top: "-4rem", visibility: "hidden" }} />
+
+      {/* ── mapcn.dev Bento Grid Showcase ────────────────────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "1rem",
+          marginBottom: "2.5rem",
+        }}
+      >
+        {/* Card 1: Active Fleet & Deliveries */}
+        <div
+          className="bento-card"
+          style={{
+            padding: "1.25rem",
+            background: "linear-gradient(180deg, rgba(17, 24, 39, 0.7) 0%, rgba(9, 9, 11, 0.95) 100%)",
+            minHeight: "170px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)", fontWeight: 600 }}>
+                Active Deliveries • Addis Ababa
+              </span>
+              <span className="live-pulse-dot" />
+            </div>
+            <div style={{ fontSize: "2.25rem", fontWeight: 700, letterSpacing: "-0.03em", color: "#ffffff" }}>
+              3,544
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "0.25rem", fontSize: "0.8rem" }}>
+              <span style={{ color: "#34d399", fontWeight: 600 }}>+12.5%</span>
+              <span style={{ color: "var(--muted-foreground)" }}>vs last hour</span>
+            </div>
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: "0.65rem", marginTop: "0.75rem" }}>
+            Canonical route sessions active with deviation alerting (&gt;100m threshold).
+          </div>
+        </div>
+
+        {/* Card 2: Route Loop & Elevation */}
+        <div
+          className="bento-card"
+          style={{
+            padding: "1.25rem",
+            background: "linear-gradient(180deg, rgba(17, 24, 39, 0.7) 0%, rgba(9, 9, 11, 0.95) 100%)",
+            minHeight: "170px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.65rem" }}>
+              <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)", fontWeight: 600 }}>
+                Bole – Meskel Sq Loop
+              </span>
+              <span className="badge-pill" style={{ height: "1.25rem", fontSize: "0.65rem", padding: "0 0.5rem" }}>
+                OSRM Fast
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.4rem", textAlign: "center" }}>
+              <div style={{ background: "rgba(255, 255, 255, 0.03)", padding: "0.4rem", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: "1.15rem", fontWeight: 700, color: "#ffffff" }}>6.2</div>
+                <div style={{ fontSize: "0.62rem", color: "var(--muted-foreground)", textTransform: "uppercase" }}>KM</div>
+              </div>
+              <div style={{ background: "rgba(255, 255, 255, 0.03)", padding: "0.4rem", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: "1.15rem", fontWeight: 700, color: "#ffffff" }}>14</div>
+                <div style={{ fontSize: "0.62rem", color: "var(--muted-foreground)", textTransform: "uppercase" }}>MINS</div>
+              </div>
+              <div style={{ background: "rgba(255, 255, 255, 0.03)", padding: "0.4rem", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: "1.15rem", fontWeight: 700, color: "#ffffff" }}>0</div>
+                <div style={{ fontSize: "0.62rem", color: "var(--muted-foreground)", textTransform: "uppercase" }}>TOLL</div>
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: "0.65rem", marginTop: "0.75rem" }}>
+            Turn maneuvers with localized Amharic intersection guidance.
+          </div>
+        </div>
+
+        {/* Card 3: Regional Hubs Quick Switcher */}
+        <div
+          className="bento-card"
+          style={{
+            padding: "1.25rem",
+            background: "linear-gradient(180deg, rgba(17, 24, 39, 0.7) 0%, rgba(9, 9, 11, 0.95) 100%)",
+            minHeight: "170px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)", fontWeight: 600, marginBottom: "0.65rem" }}>
+              Regional Hubs • Jump View
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+              {ETHIOPIA_CITIES.map((c) => (
+                <button
+                  key={c.name}
+                  onClick={() => flyToCity(c)}
+                  className={`btn-mapcn btn-mapcn-xs ${activeCity === c.name ? "btn-mapcn-primary" : "btn-mapcn-outline"}`}
+                  style={{ borderRadius: "var(--radius-full)", fontSize: "0.7rem", padding: "0 0.55rem" }}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: "0.65rem", marginTop: "0.75rem" }}>
+            Nationwide coverage including Amhara, Oromia, Sidama, and Dire Dawa.
+          </div>
+        </div>
+
+        {/* Card 4: Location Confidence & Enrichment */}
+        <div
+          className="bento-card"
+          style={{
+            padding: "1.25rem",
+            background: "linear-gradient(180deg, rgba(17, 24, 39, 0.7) 0%, rgba(9, 9, 11, 0.95) 100%)",
+            minHeight: "170px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)", fontWeight: 600 }}>
+                Location Intelligence
+              </span>
+              <span className="badge-pill" style={{ color: "#34d399", borderColor: "rgba(16, 185, 129, 0.3)" }}>
+                94% Confidence
+              </span>
+            </div>
+            <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "#ffffff", marginTop: "0.2rem" }}>
+              ቦሌ ዓለም አቀፍ አውሮፕላን ማረፊያ
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", marginTop: "2px" }}>
+              Bole Airport • 1,820 outcomes verified
+            </div>
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: "0.65rem", marginTop: "0.75rem" }}>
+            Self-reinforcing delivery feedback loop with crowd-sourced landmark names.
+          </div>
+        </div>
       </div>
 
       {/* Main Map Card */}
       <div
-        className="glass-panel"
+        className="bento-card"
         style={{
-          borderRadius: "var(--radius-xl)",
+          borderRadius: "var(--radius-lg)",
           overflow: "hidden",
-          border: "1px solid var(--border-card)",
-          boxShadow: "0 25px 60px rgba(0, 0, 0, 0.5)",
+          border: "1px solid var(--border)",
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
         }}
       >
         {/* Top Control Toolbar */}
         <div
           style={{
-            padding: "0.75rem 1.25rem",
-            background: "rgba(10, 16, 31, 0.95)",
-            borderBottom: "1px solid var(--border-subtle)",
+            padding: "0.65rem 1rem",
+            background: "#09090b",
+            borderBottom: "1px solid var(--border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             flexWrap: "wrap",
-            gap: "0.75rem",
+            gap: "0.65rem",
           }}
         >
           {/* Style Switcher */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, marginRight: "0.2rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", fontWeight: 500, marginRight: "0.2rem" }}>
               Style:
             </span>
             {(["dark", "voyager", "light", "osm"] as const).map((styleKey) => (
               <button
                 key={styleKey}
                 onClick={() => handleStyleChange(styleKey)}
-                className={`btn btn-sm ${currentStyle === styleKey ? "btn-primary" : "btn-secondary"}`}
-                style={{ textTransform: "capitalize", fontSize: "0.725rem", padding: "0.25rem 0.55rem" }}
+                className={`btn-mapcn btn-mapcn-xs ${currentStyle === styleKey ? "btn-mapcn-primary" : "btn-mapcn-outline"}`}
+                style={{ textTransform: "capitalize" }}
               >
                 {styleKey === "voyager" ? "Street" : styleKey}
               </button>
@@ -616,16 +780,15 @@ export function MapShowcase() {
           </div>
 
           {/* Travel Profile Selector */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, marginRight: "0.2rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--muted-foreground)", fontWeight: 500, marginRight: "0.2rem" }}>
               Profile:
             </span>
             {(["driving", "walking", "cycling"] as const).map((pKey) => (
               <button
                 key={pKey}
                 onClick={() => handleProfileChange(pKey)}
-                className={`btn btn-sm ${profile === pKey ? "btn-accent" : "btn-secondary"}`}
-                style={{ fontSize: "0.725rem", padding: "0.25rem 0.55rem" }}
+                className={`btn-mapcn btn-mapcn-xs ${profile === pKey ? "btn-mapcn-primary" : "btn-mapcn-outline"}`}
               >
                 {pKey === "driving" ? "🚗 Driving" : pKey === "walking" ? "🚶 Walking" : "🚲 Cycling"}
               </button>
@@ -633,10 +796,11 @@ export function MapShowcase() {
           </div>
 
           {/* Autocomplete Search input */}
-          <div style={{ position: "relative", width: "230px" }}>
+          <div style={{ position: "relative", width: "220px" }}>
             <input
+              id="search-input"
               type="text"
-              placeholder="Search place (e.g. Bole)..."
+              placeholder="Search places in Addis..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               style={{
