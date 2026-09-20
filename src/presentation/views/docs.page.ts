@@ -9,7 +9,7 @@ export function renderDocsHtml(): string {
   <!-- Primary SEO Meta Tags -->
   <meta name="title" content="Open Ethiopia Map — Open-Source Routing, Geocoding & Map Tile Platform" />
   <meta name="description" content="Open-source location intelligence and routing platform for Ethiopia. Fast turn-by-turn navigation, multi-source place autocomplete, reverse geocoding, and raster map tiles for web and mobile." />
-  <meta name="keywords" content="Ethiopia map API, Addis Ababa routing, Open Ethiopia Map, Ethiopian map tiles, reverse geocoding Ethiopia, OSRM Ethiopia, Leaflet Ethiopia map, Ethiopia GIS, open source map" />
+  <meta name="keywords" content="Ethiopia map API, Addis Ababa routing, Open Ethiopia Map, Ethiopian map tiles, MapLibre Ethiopia map, reverse geocoding Ethiopia, OSRM Ethiopia, Leaflet Ethiopia map, Ethiopia GIS, open source map" />
   <meta name="author" content="Open Ethiopia Map Contributors" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://open-ethiopia-map-isf6.vercel.app/" />
@@ -28,18 +28,21 @@ export function renderDocsHtml(): string {
   <meta property="twitter:title" content="Open Ethiopia Map — Routing & Location Intelligence" />
   <meta property="twitter:description" content="Open-source geospatial platform for Ethiopia with OSRM routing, reverse geocoding, and raster map tiles." />
 
-  <!-- Schema.org JSON-LD Structured Data -->
+  <!-- Schema.org JSON-LD structured data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Open Ethiopia Map",
-    "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "All",
-    "description": "Open-source geospatial platform, turn-by-turn routing engine, reverse geocoding, and raster tile API for Ethiopia.",
+    "@type": "WebAPI",
+    "name": "Open Ethiopia Map API",
+    "description": "Open-source routing, reverse geocoding, place autocomplete, and map tile services for Ethiopia.",
     "url": "https://open-ethiopia-map-isf6.vercel.app/",
-    "codeRepository": "https://github.com/kira-kb/open-ethiopia-map",
-    "license": "https://opensource.org/licenses/MIT",
+    "provider": {
+      "@type": "Organization",
+      "name": "Open Ethiopia Map Contributors",
+      "url": "https://github.com/kira-kb/open-ethiopia-map"
+    },
+    "serviceType": "Geographic Information System (GIS) and Navigation",
+    "termsOfService": "https://opensource.org/licenses/MIT",
     "offers": {
       "@type": "Offer",
       "price": "0",
@@ -51,8 +54,8 @@ export function renderDocsHtml(): string {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <style>
     :root {
       --bg: #0f172a;
@@ -456,6 +459,52 @@ export function renderDocsHtml(): string {
       width: 100%;
       border-radius: var(--radius);
       border: 1px solid var(--border);
+      position: relative;
+    }
+
+    /* MapLibre Dark UI Overrides */
+    .maplibregl-popup-content {
+      background: var(--card-bg) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 8px !important;
+      padding: 0.85rem 1rem !important;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+      font-family: inherit !important;
+      font-size: 0.85rem !important;
+    }
+    .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--border) !important; }
+    .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--border) !important; }
+    .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--border) !important; }
+    .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--border) !important; }
+    .maplibregl-popup-close-button {
+      color: var(--text-muted) !important;
+      font-size: 1.1rem !important;
+      padding: 4px 8px !important;
+    }
+    .maplibregl-popup-close-button:hover {
+      color: var(--text) !important;
+      background: transparent !important;
+    }
+    .maplibregl-ctrl-group {
+      background: var(--card-bg) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 6px !important;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    }
+    .maplibregl-ctrl-group button {
+      border-bottom: 1px solid var(--border) !important;
+      background-color: transparent !important;
+    }
+    .maplibregl-ctrl-group button:last-child {
+      border-bottom: none !important;
+    }
+    .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+      filter: invert(0.85);
+    }
+    .maplibregl-ctrl-group button:hover {
+      background-color: #334155 !important;
     }
 
     .subnav-tabs {
@@ -847,7 +896,43 @@ export function renderDocsHtml(): string {
           </div>
         </div>
 
-        <!-- 5. GET /api/v1/map/tiles/:style/:z/:x/:y.png -->
+        <!-- 5. GET /api/v1/map/styles/:style.json -->
+        <div class="api-endpoint-doc" id="doc-styles">
+          <div class="api-endpoint-header">
+            <div>
+              <span class="method-badge method-get">GET</span>
+              <span class="endpoint-title">/api/v1/map/styles/:style.json</span>
+            </div>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">MapLibre Style Specification (v8)</span>
+          </div>
+          <div class="api-endpoint-body">
+            <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
+              Returns a full MapLibre Style Specification v8 JSON ready to be passed directly into MapLibre GL JS, MapLibre Flutter, or React Native. Auto-detects the host/protocol and configures theme background colors to prevent white flash.
+            </p>
+
+            <div class="doc-subtitle">Path parameters</div>
+            <div class="table-box">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Options</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>style</code></td>
+                    <td><code>dark</code>, <code>voyager</code>, <code>light</code>, <code>osm</code></td>
+                    <td>Map style theme (default: <code>dark</code>)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. GET /api/v1/map/tiles/:style/:z/:x/:y.png -->
         <div class="api-endpoint-doc" id="doc-tiles">
           <div class="api-endpoint-header">
             <div>
@@ -858,7 +943,7 @@ export function renderDocsHtml(): string {
           </div>
           <div class="api-endpoint-body">
             <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
-              Delivers 256x256 raster map tiles directly to web and mobile mapping clients (Leaflet, MapLibre, React Native Maps, Flutter Map). Includes browser caching headers.
+              Delivers 256x256 raster map tiles directly to web and mobile mapping clients (MapLibre GL, Leaflet, React Native Maps, Flutter Map). Includes browser caching headers.
             </p>
 
             <div class="doc-subtitle">Path parameters</div>
@@ -1163,33 +1248,36 @@ Content-Type: application/json
     <!-- TAB 3: MAP TILES & SDKS -->
     <section id="tab-tiles" class="tab-content">
       <div class="grid-layout">
-        <!-- Leaflet Viewer -->
+        <!-- MapLibre GL Viewer -->
         <div class="card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <div>
-              <h2 class="card-heading" style="margin-bottom: 0;">Live map tile viewer</h2>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">Endpoint: <code>/api/v1/map/tiles/{style}/{z}/{x}/{y}.png</code></span>
+              <h2 class="card-heading" style="margin-bottom: 0;">Live MapLibre GL viewer</h2>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Style URL: <code>/api/v1/map/styles/{style}.json</code> &bull; Tiles: <code>/api/v1/map/tiles/{style}/{z}/{x}/{y}.png</code></span>
             </div>
             <div style="display: flex; gap: 0.35rem;">
-              <button class="btn btn-secondary btn-sm" onclick="setTileStyle('dark')">Dark</button>
-              <button class="btn btn-secondary btn-sm" onclick="setTileStyle('voyager')">Street</button>
-              <button class="btn btn-secondary btn-sm" onclick="setTileStyle('light')">Light</button>
-              <button class="btn btn-secondary btn-sm" onclick="setTileStyle('osm')">OSM</button>
+              <button class="btn btn-primary btn-sm" id="btn-style-dark" onclick="setTileStyle('dark')">Dark</button>
+              <button class="btn btn-secondary btn-sm" id="btn-style-voyager" onclick="setTileStyle('voyager')">Street</button>
+              <button class="btn btn-secondary btn-sm" id="btn-style-light" onclick="setTileStyle('light')">Light</button>
+              <button class="btn btn-secondary btn-sm" id="btn-style-osm" onclick="setTileStyle('osm')">OSM</button>
             </div>
           </div>
 
           <div id="liveMap"></div>
 
           <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted);">
-            <span>Click on the map to inspect coordinates.</span>
-            <button class="btn btn-primary btn-sm" onclick="drawDemoRoute()">Draw sample route</button>
+            <span>Click anywhere on the map to inspect coordinates & reverse-geocode.</span>
+            <div style="display: flex; gap: 0.4rem;">
+              <button class="btn btn-secondary btn-sm" onclick="clearMapLayers()">Clear layers</button>
+              <button class="btn btn-primary btn-sm" onclick="drawDemoRoute()">Draw sample route</button>
+            </div>
           </div>
         </div>
 
         <!-- Client Code Guides -->
         <div class="card">
           <h2 class="card-heading">Client integration guides</h2>
-          <p class="card-description">Copyable code snippets for rendering tiles and maps across web and mobile platforms.</p>
+          <p class="card-description">Production-ready MapLibre code snippets for web and mobile (zero API keys required).</p>
 
           <div class="subnav-tabs">
             <button class="subnav-btn active" onclick="switchSubTab('sub-react')">React</button>
@@ -1199,47 +1287,63 @@ Content-Type: application/json
           </div>
 
           <div id="sub-react" class="subpanel active">
-            <pre class="code-block">// npm install leaflet react-leaflet
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+            <pre class="code-block">// npm install maplibre-gl
+import React, { useEffect, useRef } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-export function MapView() {
-  const tileUrl = "https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png";
+export function EthiopiaMap() {
+  const mapContainer = useRef(null);
+  const map = useRef(null);
 
-  return (
-    &lt;MapContainer center={[9.0105, 38.7612]} zoom={13} style={{ height: "420px", width: "100%", borderRadius: "6px" }}&gt;
-      &lt;TileLayer url={tileUrl} attribution="&copy; Open Ethiopia Map" /&gt;
-      &lt;Marker position={[8.9806, 38.7578]}&gt;
-        &lt;Popup&gt;Meskel Square, Addis Ababa&lt;/Popup&gt;
-      &lt;/Marker&gt;
-    &lt;/MapContainer&gt;
-  );
+  useEffect(() => {
+    if (map.current) return;
+    map.current = new maplibregl.Map({
+      container: mapContainer.current,
+      style: "https://open-ethiopia-map-isf6.vercel.app/api/v1/map/styles/dark.json",
+      center: [38.7612, 9.0105], // [lng, lat]
+      zoom: 12.5,
+    });
+
+    map.current.addControl(new maplibregl.NavigationControl(), "top-right");
+
+    new maplibregl.Marker({ color: "#10b981" })
+      .setLngLat([38.7578, 8.9806])
+      .setPopup(new maplibregl.Popup().setHTML("&lt;b&gt;Meskel Square&lt;/b&gt;&lt;br/&gt;Addis Ababa"))
+      .addTo(map.current);
+
+    return () => map.current?.remove();
+  }, []);
+
+  return &lt;div ref={mapContainer} style={{ width: "100%", height: "420px", borderRadius: "8px" }} /&gt;;
 }</pre>
           </div>
 
           <div id="sub-native" class="subpanel">
-            <pre class="code-block">// npm install react-native-maps
+            <pre class="code-block">// npm install @maplibre/maplibre-react-native
 import React from "react";
-import MapView, { UrlTile, Marker } from "react-native-maps";
 import { StyleSheet, View } from "react-native";
+import MapLibreGL from "@maplibre/maplibre-react-native";
+
+MapLibreGL.setAccessToken(null); // No token needed!
 
 export function MobileMap() {
-  const tileUrl = "https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png";
-
   return (
     &lt;View style={styles.container}&gt;
-      &lt;MapView
+      &lt;MapLibreGL.MapView
         style={styles.map}
-        initialRegion={{
-          latitude: 9.0105,
-          longitude: 38.7612,
-          latitudeDelta: 0.09,
-          longitudeDelta: 0.04,
-        }}
+        styleURL="https://open-ethiopia-map-isf6.vercel.app/api/v1/map/styles/dark.json"
+        logoEnabled={false}
       &gt;
-        &lt;UrlTile urlTemplate={tileUrl} maximumZ={19} flipY={false} zIndex={1} /&gt;
-        &lt;Marker coordinate={{ latitude: 8.9806, longitude: 38.7578 }} title="Meskel Square" /&gt;
-      &lt;/MapView&gt;
+        &lt;MapLibreGL.Camera
+          zoomLevel={12.5}
+          centerCoordinate={[38.7612, 9.0105]}
+          animationMode="flyTo"
+        /&gt;
+        &lt;MapLibreGL.PointAnnotation id="meskel" coordinate={[38.7578, 8.9806]}&gt;
+          &lt;View style={styles.marker} /&gt;
+        &lt;/MapLibreGL.PointAnnotation&gt;
+      &lt;/MapLibreGL.MapView&gt;
     &lt;/View&gt;
   );
 }
@@ -1247,6 +1351,7 @@ export function MobileMap() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { width: "100%", height: "100%" },
+  marker: { width: 14, height: 14, borderRadius: 7, backgroundColor: "#10b981", borderWidth: 2, borderColor: "#fff" },
 });</pre>
           </div>
 
@@ -1254,57 +1359,58 @@ const styles = StyleSheet.create({
             <pre class="code-block">&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
-  &lt;link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /&gt;
-  &lt;script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"&gt;&lt;/script&gt;
+  &lt;meta charset="utf-8" /&gt;
+  &lt;title&gt;Open Ethiopia Map&lt;/title&gt;
+  &lt;link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" /&gt;
+  &lt;script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"&gt;&lt;/script&gt;
   &lt;style&gt;
-    #map { height: 420px; width: 100%; border-radius: 6px; }
+    #map { height: 420px; width: 100%; border-radius: 8px; }
   &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
   &lt;div id="map"&gt;&lt;/div&gt;
   &lt;script&gt;
-    const map = L.map('map').setView([9.0105, 38.7612], 13);
-    L.tileLayer('https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; Open Ethiopia Map'
-    }).addTo(map);
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://open-ethiopia-map-isf6.vercel.app/api/v1/map/styles/dark.json',
+      center: [38.7612, 9.0105], // Addis Ababa [lng, lat]
+      zoom: 12.5
+    });
 
-    L.marker([8.9806, 38.7578]).addTo(map).bindPopup('Meskel Square').openPopup();
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    new maplibregl.Marker({ color: '#10b981' })
+      .setLngLat([38.7578, 8.9806])
+      .setPopup(new maplibregl.Popup().setText('Meskel Square, Addis Ababa'))
+      .addTo(map);
   &lt;/script&gt;
 &lt;/body&gt;
 &lt;/html&gt;</pre>
           </div>
 
           <div id="sub-flutter" class="subpanel">
-            <pre class="code-block">// dependencies: flutter_map: ^6.0.0, latlong2: ^0.9.0
+            <pre class="code-block">// pubspec.yaml: maplibre_gl: ^0.16.0
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 class EthiopiaMapPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return FlutterMap(
-      options: MapOptions(
-        initialCenter: LatLng(9.0105, 38.7612),
-        initialZoom: 13.0,
+    return Scaffold(
+      body: MapLibreMap(
+        styleString: 'https://open-ethiopia-map-isf6.vercel.app/api/v1/map/styles/dark.json',
+        initialCameraPosition: const CameraPosition(
+          target: LatLng(9.0105, 38.7612),
+          zoom: 12.5,
+        ),
+        onMapCreated: (controller) {
+          controller.addCircle(const CircleOptions(
+            geometry: LatLng(8.9806, 38.7578),
+            circleColor: "#10b981",
+            circleRadius: 8.0,
+          ));
+        },
       ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://open-ethiopia-map-isf6.vercel.app/api/v1/map/tiles/dark/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.ethiopiamap',
-        ),
-        MarkerLayer(
-          markers: [
-            Marker(
-              point: LatLng(8.9806, 38.7578),
-              width: 35,
-              height: 35,
-              child: Icon(Icons.location_pin, color: Colors.red),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }</pre>
@@ -1508,9 +1614,10 @@ class EthiopiaMapPage extends StatelessWidget {
 
   <script>
     let currentSavedPlaces = [];
-    let leafletMap = null;
-    let currentTileLayer = null;
-    let currentRouteLine = null;
+    let maplibreMap = null;
+    let activeMarkers = [];
+    let activePopup = null;
+    let currentStyleName = 'dark';
 
     function switchMainTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -1522,8 +1629,8 @@ class EthiopiaMapPage extends StatelessWidget {
       const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(tabId));
       if (activeBtn) activeBtn.classList.add('active');
 
-      if (tabId === 'tab-tiles' && leafletMap) {
-        setTimeout(() => leafletMap.invalidateSize(), 200);
+      if (tabId === 'tab-tiles' && maplibreMap) {
+        setTimeout(() => maplibreMap.resize(), 150);
       }
     }
 
@@ -1546,39 +1653,159 @@ class EthiopiaMapPage extends StatelessWidget {
     }
 
     function initMap() {
-      if (leafletMap) return;
-      leafletMap = L.map('liveMap').setView([9.0105, 38.7612], 13);
-      setTileStyle('dark');
+      if (maplibreMap) return;
 
-      L.marker([8.9806, 38.7578]).addTo(leafletMap).bindPopup('Meskel Square, Addis Ababa');
+      maplibreMap = new maplibregl.Map({
+        container: 'liveMap',
+        style: '/api/v1/map/styles/dark.json',
+        center: [38.7612, 9.0105], // Addis Ababa [lng, lat]
+        zoom: 12.5,
+      });
 
-      leafletMap.on('click', async (e) => {
-        const { lat, lng } = e.latlng;
-        showToast(\`Coordinates: \${lat.toFixed(4)}, \${lng.toFixed(4)}\`);
-        const marker = L.marker([lat, lng]).addTo(leafletMap);
+      maplibreMap.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+      maplibreMap.addControl(new maplibregl.FullscreenControl(), 'top-right');
+
+      maplibreMap.on('load', () => {
+        addLandmarkMarker([38.7578, 8.9806], 'Meskel Square', 'Central Addis Ababa landmark', '#10b981');
+      });
+
+      maplibreMap.on('click', async (e) => {
+        const { lng, lat } = e.lngLat;
+        showToast('Coordinates: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
+
+        if (activePopup) activePopup.remove();
+
+        // Custom styled marker element
+        const el = document.createElement('div');
+        el.style.width = '14px';
+        el.style.height = '14px';
+        el.style.borderRadius = '50%';
+        el.style.backgroundColor = '#38bdf8';
+        el.style.border = '2px solid #ffffff';
+        el.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.8)';
+        el.style.cursor = 'pointer';
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([lng, lat])
+          .addTo(maplibreMap);
+        activeMarkers.push(marker);
+
+        activePopup = new maplibregl.Popup({ offset: 12, closeButton: true })
+          .setLngLat([lng, lat])
+          .setHTML(
+            '<div style="min-width: 170px;">' +
+            '<div style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.25rem;">Inspecting point...</div>' +
+            '<div style="color: var(--text-muted); font-size: 0.775rem;">Lat: ' + lat.toFixed(5) + '<br/>Lng: ' + lng.toFixed(5) + '</div>' +
+            '</div>'
+          )
+          .addTo(maplibreMap);
+
         try {
-          const res = await fetch(\`/api/v1/map/reverse-geocode?lat=\${lat}&lng=\${lng}\`);
+          const res = await fetch('/api/v1/map/reverse-geocode?lat=' + lat + '&lng=' + lng);
           const data = await res.json();
-          const addr = data.data?.address?.formatted || 'Selected point';
-          marker.bindPopup(\`<b>\${addr}</b><br>Lat: \${lat.toFixed(4)}, Lng: \${lng.toFixed(4)}\`).openPopup();
+          const addr = data.data?.address?.formatted || data.data?.displayName || 'Selected Location';
+          const name = data.data?.name || '';
+          const escapedName = name.replace(/'/g, "\\'");
+          const escapedAddr = addr.replace(/'/g, "\\'");
+
+          activePopup.setHTML(
+            '<div style="min-width: 190px;">' +
+            '<div style="font-weight: 600; font-size: 0.875rem; color: #38bdf8; margin-bottom: 0.25rem;">' + addr + '</div>' +
+            '<div style="color: var(--text-muted); font-size: 0.775rem; margin-bottom: 0.5rem;">Lat: ' + lat.toFixed(5) + ', Lng: ' + lng.toFixed(5) + '</div>' +
+            '<button class="btn btn-secondary btn-sm" style="width: 100%; font-size: 0.75rem; padding: 0.25rem 0.5rem;" onclick="setFormCoords(' + lat + ', ' + lng + ', \'' + escapedName + '\', \'' + escapedAddr + '\')">Use in Saved Places</button>' +
+            '</div>'
+          );
         } catch {
-          marker.bindPopup(\`Lat: \${lat.toFixed(4)}, Lng: \${lng.toFixed(4)}\`).openPopup();
+          // fallback already active
         }
       });
     }
 
+    function addLandmarkMarker(coords, title, subtitle, color) {
+      if (!maplibreMap) return;
+      color = color || '#10b981';
+      const marker = new maplibregl.Marker({ color: color })
+        .setLngLat(coords)
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 }).setHTML(
+            '<div style="min-width: 160px;">' +
+            '<div style="font-weight: 600; font-size: 0.875rem; color: ' + color + ';">' + title + '</div>' +
+            '<div style="color: var(--text-muted); font-size: 0.775rem;">' + subtitle + '</div>' +
+            '</div>'
+          )
+        )
+        .addTo(maplibreMap);
+      activeMarkers.push(marker);
+      return marker;
+    }
+
     function setTileStyle(style) {
-      if (!leafletMap) return;
-      if (currentTileLayer) leafletMap.removeLayer(currentTileLayer);
-      currentTileLayer = L.tileLayer(\`/api/v1/map/tiles/\${style}/{z}/{x}/{y}.png\`, {
-        maxZoom: 19,
-        attribution: '&copy; Open Ethiopia Map'
-      }).addTo(leafletMap);
-      showToast(\`Switched to \${style} map layer\`);
+      if (!maplibreMap) return;
+      currentStyleName = style;
+
+      ['dark', 'voyager', 'light', 'osm'].forEach(s => {
+        const btn = document.getElementById('btn-style-' + s);
+        if (btn) {
+          if (s === style) {
+            btn.className = 'btn btn-primary btn-sm';
+          } else {
+            btn.className = 'btn btn-secondary btn-sm';
+          }
+        }
+      });
+
+      // Preserve any active demo route data
+      const existingRouteData = maplibreMap.getSource('demo-route-src') ? maplibreMap.getSource('demo-route-src')._data : null;
+
+      maplibreMap.setStyle('/api/v1/map/styles/' + style + '.json');
+
+      maplibreMap.once('style.load', () => {
+        if (existingRouteData) {
+          addRouteLayers(existingRouteData);
+        }
+      });
+
+      showToast('Switched to ' + style + ' map style');
+    }
+
+    function addRouteLayers(geojsonData) {
+      if (!maplibreMap) return;
+      if (maplibreMap.getSource('demo-route-src')) {
+        maplibreMap.getSource('demo-route-src').setData(geojsonData);
+        return;
+      }
+
+      maplibreMap.addSource('demo-route-src', {
+        type: 'geojson',
+        data: geojsonData,
+      });
+
+      maplibreMap.addLayer({
+        id: 'demo-route-glow',
+        type: 'line',
+        source: 'demo-route-src',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#0284c7',
+          'line-width': 8,
+          'line-opacity': 0.5,
+        },
+      });
+
+      maplibreMap.addLayer({
+        id: 'demo-route-core',
+        type: 'line',
+        source: 'demo-route-src',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#38bdf8',
+          'line-width': 4,
+        },
+      });
     }
 
     async function drawDemoRoute() {
-      if (!leafletMap) return;
+      if (!maplibreMap) return;
       showToast('Calculating route...');
       try {
         const res = await fetch('/api/v1/map/route', {
@@ -1588,21 +1815,54 @@ class EthiopiaMapPage extends StatelessWidget {
             origin: { lat: 8.9806, lng: 38.7578 },
             destination: { lat: 8.9774, lng: 38.7993 },
             profile: 'driving',
-            steps: true
-          })
+            steps: true,
+          }),
         });
         const data = await res.json();
         if (data.success && data.data?.routes?.[0]?.geometry?.coordinates) {
-          const coords = data.data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-          if (currentRouteLine) leafletMap.removeLayer(currentRouteLine);
-          currentRouteLine = L.polyline(coords, { color: '#3b82f6', weight: 4 }).addTo(leafletMap);
-          L.marker([8.9774, 38.7993]).addTo(leafletMap).bindPopup('Bole International Airport');
-          leafletMap.fitBounds(currentRouteLine.getBounds(), { padding: [30, 30] });
-          showToast(\`Route loaded: \${data.data.routes[0].summary.distanceText} (\${data.data.routes[0].summary.durationText})\`);
+          const route = data.data.routes[0];
+          const coords = route.geometry.coordinates; // [ [lng, lat], ... ]
+
+          addRouteLayers({
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: coords,
+            },
+          });
+
+          addLandmarkMarker([38.7993, 8.9774], 'Bole International Airport', 'Destination', '#38bdf8');
+
+          const bounds = coords.reduce(
+            (b, coord) => b.extend(coord),
+            new maplibregl.LngLatBounds(coords[0], coords[0]),
+          );
+
+          maplibreMap.fitBounds(bounds, { padding: 50, duration: 1000 });
+          showToast('Route loaded: ' + route.summary.distanceText + ' (' + route.summary.durationText + ')');
+        } else {
+          showToast('No route found');
         }
       } catch (err) {
         showToast('Route calculation failed: ' + err.message);
       }
+    }
+
+    function clearMapLayers() {
+      if (!maplibreMap) return;
+      activeMarkers.forEach(m => m.remove());
+      activeMarkers = [];
+      if (activePopup) {
+        activePopup.remove();
+        activePopup = null;
+      }
+      if (maplibreMap.getLayer('demo-route-core')) maplibreMap.removeLayer('demo-route-core');
+      if (maplibreMap.getLayer('demo-route-glow')) maplibreMap.removeLayer('demo-route-glow');
+      if (maplibreMap.getSource('demo-route-src')) maplibreMap.removeSource('demo-route-src');
+
+      addLandmarkMarker([38.7578, 8.9806], 'Meskel Square', 'Central Addis Ababa landmark', '#10b981');
+      showToast('Cleared custom layers');
     }
 
     function setFormCoords(lat, lng, name, address) {

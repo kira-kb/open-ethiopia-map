@@ -37,6 +37,7 @@ export function createRouter(
           reverseGeocode: "/api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
           nearby: "/api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
           route: "POST /api/v1/map/route",
+          styles: "/api/v1/map/styles/{style}.json (MapLibre Style Spec v8)",
           tiles: "/api/v1/map/tiles/{style}/{z}/{x}/{y}.png (styles: dark, light, voyager, osm)",
           savedPlaces: "/api/v1/map/saved-places",
         },
@@ -53,6 +54,8 @@ export function createRouter(
   router.get("/health", healthController.check.bind(healthController));
 
   if (tileController) {
+    router.get("/api/v1/map/styles/:style.json", tileController.serveStyle.bind(tileController));
+    router.get("/api/v1/map/styles/:style", tileController.serveStyle.bind(tileController));
     router.get("/api/v1/map/tiles/:style/:z/:x/:y.png", tileController.serve.bind(tileController));
     router.get("/api/v1/map/tiles/:style/:z/:x/:y", tileController.serve.bind(tileController));
     router.get("/api/v1/map/tiles/:z/:x/:y.png", tileController.serve.bind(tileController));

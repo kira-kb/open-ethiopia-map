@@ -131,9 +131,10 @@ export class RouteSessionController {
 
   async checkDeviation(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { latitude, longitude } = req.body;
+      const latitude = req.body?.latitude ?? req.body?.lat;
+      const longitude = req.body?.longitude ?? req.body?.lng;
       if (latitude == null || longitude == null) {
-        res.status(400).json({ success: false, message: "latitude and longitude required" });
+        res.status(400).json({ success: false, message: "latitude and longitude (or lat and lng) required" });
         return;
       }
       const result = await this.deviationUseCase.execute({
