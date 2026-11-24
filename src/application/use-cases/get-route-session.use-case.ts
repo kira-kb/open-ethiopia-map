@@ -16,27 +16,53 @@ export class GetRouteSessionUseCase {
     const session = await this.sessionRepo.findSessionById(sessionId);
     if (!session) return null;
 
-    // Populate cache on read-through for subsequent requests
-    const cached = await this.sessionCache.get(sessionId);
-    if (!cached) {
-      await this.sessionCache.set({
-        id: session.id,
-        deliveryId: session.deliveryId,
-        provider: session.provider,
-        profile: session.profile,
-        distanceMeters: session.distanceMeters,
-        durationSeconds: session.durationSeconds,
-        geometry: session.geometry,
-        instructions: session.instructions,
-        currentRevision: session.currentRevision,
-        status: session.status,
-      });
-    }
+    // Populate/refresh write-through cache with sliding expiration
+    await this.sessionCache.set({
+      id: session.id,
+      deliveryId: session.deliveryId,
+      provider: session.provider,
+      profile: session.profile,
+      distanceMeters: session.distanceMeters,
+      durationSeconds: session.durationSeconds,
+      geometry: session.geometry,
+      instructions: session.instructions,
+      currentRevision: session.currentRevision,
+      status: session.status,
+    });
 
     return session;
   }
 
   async executeByDeliveryId(deliveryId: string): Promise<RouteSession | null> {
-    return this.sessionRepo.findSessionByDeliveryId(deliveryId);
+    // 1. Fast-path: check delivery cache index to resolve sessionId
+    const cachedSessionId = await this.sessionCache.getSessionIdByDeliveryId(deliveryId);
+    if (cachedSessionId) {
+      const session = await this.sessionRepo.findSessionById(cachedSessionId);
+      if (session) {
+        // Refresh sliding TTL on active driver poll
+        await this.sessionCache.get(cachedSessionId);
+        return session;
+      }
+    }
+
+    // 2. DB fallback
+    const session = await this.sessionRepo.findSessionByDeliveryId(deliveryId);
+    if (!session) return null;
+
+    // 3. Warm the delivery index and session cache
+    await this.sessionCache.set({
+      id: session.id,
+      deliveryId: session.deliveryId,
+      provider: session.provider,
+      profile: session.profile,
+      distanceMeters: session.distanceMeters,
+      durationSeconds: session.durationSeconds,
+      geometry: session.geometry,
+      instructions: session.instructions,
+      currentRevision: session.currentRevision,
+      status: session.status,
+    });
+
+    return session;
   }
 }

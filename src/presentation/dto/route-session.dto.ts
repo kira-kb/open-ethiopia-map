@@ -16,14 +16,14 @@ export const CreateRouteSessionSchema = z.object({
   origin: CoordinateSchema,
   destination: CoordinateSchema,
   stops: z.array(CoordinateSchema).optional(),
-  profile: z.enum(["driving", "cycling", "walking", "motorcycle"]).default("driving"),
+  profile: z.enum(["driving", "bajaj", "cycling", "walking", "motorcycle"]).default("driving"),
 });
 
 export const ReplanRouteSessionSchema = z.object({
   origin: CoordinateSchema.optional(),
   destination: CoordinateSchema.optional(),
   stops: z.array(CoordinateSchema).optional(),
-  profile: z.enum(["driving", "cycling", "walking", "motorcycle"]).optional(),
+  profile: z.enum(["driving", "bajaj", "cycling", "walking", "motorcycle"]).optional(),
   reason: z.enum(["DRIVER_REQUEST", "TRAFFIC", "ROAD_CLOSED", "PROVIDER_FAILOVER", "SYSTEM"]).default("DRIVER_REQUEST"),
 });
 

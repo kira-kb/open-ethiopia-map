@@ -1,5 +1,6 @@
 import { PackManRoute, RouteGeometry } from "../../../../domain/entities";
 import { Coordinates, Distance, Duration } from "../../../../domain/value-objects";
+import { ManeuverLocalizer } from "../../../../domain/services/routing/maneuver-localizer";
 
 interface OsrmResponse {
   code: string;
@@ -44,7 +45,7 @@ interface OsrmResponse {
 }
 
 export class OsrmRouteMapper {
-  map(raw: unknown, providerName: string): PackManRoute[] {
+  map(raw: unknown, providerName: string, lang: "en" | "am" = "en"): PackManRoute[] {
     const response = raw as OsrmResponse;
     if (!response.routes?.length) return [];
 
@@ -65,7 +66,14 @@ export class OsrmRouteMapper {
         })),
         providerName,
         (route.legs?.[0]?.steps || []).map((step) => ({
-          instruction: `${step.maneuver.type} ${step.maneuver.modifier} on ${step.name}`.trim(),
+          instruction: ManeuverLocalizer.format(
+            {
+              type: step.maneuver.type,
+              modifier: step.maneuver.modifier,
+              name: step.name,
+            },
+            lang
+          ),
           distance: new Distance(step.distance, "m"),
           duration: new Duration(step.duration, "s"),
           type: step.maneuver.type,

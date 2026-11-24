@@ -16,10 +16,11 @@ export const RouteRequestSchema = z.object({
   destination: CoordinateSchema,
   stops: z.array(CoordinateSchema).optional(),
   profile: z
-    .enum(["driving", "cycling", "walking", "motorcycle"])
+    .enum(["driving", "bajaj", "cycling", "walking", "motorcycle"])
     .default("driving"),
   alternatives: z.number().int().min(0).max(3).optional(),
   steps: z.boolean().optional(),
+  lang: z.enum(["en", "am"]).default("en"),
 });
 
 export type RouteRequestDto = z.infer<typeof RouteRequestSchema>;

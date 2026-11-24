@@ -123,6 +123,13 @@ export function Navbar() {
             >
               API Reference
             </Link>
+            <Link
+              href="/portal"
+              className="btn-mapcn btn-mapcn-ghost"
+              style={{ height: "2rem", padding: "0 0.75rem", fontSize: "0.825rem", color: "#10b981", fontWeight: 600 }}
+            >
+              Portal
+            </Link>
           </nav>
         </div>
 

@@ -50,9 +50,10 @@ COPY --from=node-builder /app/node_modules ./node_modules
 COPY --from=node-builder /app/dist ./dist
 COPY --from=node-builder /app/prisma ./prisma
 COPY --from=node-builder /app/prisma.config.ts ./
-COPY scripts/start.sh ./scripts/start.sh
+COPY docker ./docker
+COPY scripts ./scripts
 
-RUN chmod +x ./scripts/start.sh
+RUN chmod +x ./scripts/*.sh
 
 # Default environment configurations
 ENV NODE_ENV=production

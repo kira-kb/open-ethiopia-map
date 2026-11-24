@@ -6,21 +6,41 @@ echo "🇪🇹 Open Ethiopia Map & Routing Platform"
 echo "=========================================================="
 
 DATA_DIR="/data"
-OSM_FILE="${DATA_DIR}/ethiopia-latest.osm.pbf"
-OSRM_BASE="${DATA_DIR}/ethiopia-latest.osrm"
+ROADS_OSRM="${DATA_DIR}/ethiopia-roads.osrm"
+LATEST_OSRM="${DATA_DIR}/ethiopia-latest.osrm"
 
-# 1. Download and compile OSM data if not already present
-if [ ! -f "${OSRM_BASE}.mldgr" ] && [ ! -f "${OSRM_BASE}.cells" ] && [ ! -f "${OSRM_BASE}" ]; then
+# Prefer lightweight filtered graph, fallback to full graph
+if [ -f "${ROADS_OSRM}.mldgr" ] || [ -f "${ROADS_OSRM}.cells" ] || [ -f "${ROADS_OSRM}" ]; then
+  OSRM_BASE="${ROADS_OSRM}"
+  echo "✅ Found pre-compiled lightweight road graph: ${OSRM_BASE}"
+elif [ -f "${LATEST_OSRM}.mldgr" ] || [ -f "${LATEST_OSRM}.cells" ] || [ -f "${LATEST_OSRM}" ]; then
+  OSRM_BASE="${LATEST_OSRM}"
+  echo "✅ Found pre-compiled standard map graph: ${OSRM_BASE}"
+else
+  OSRM_BASE="${ROADS_OSRM}"
   echo "📥 Pre-compiled OSRM graph not found. Checking OSM data..."
   
-  if [ ! -f "${OSM_FILE}" ]; then
+  ROADS_FILE="${DATA_DIR}/ethiopia-roads.osm.pbf"
+  OSM_FILE="${DATA_DIR}/ethiopia-latest.osm.pbf"
+
+  if [ ! -f "${ROADS_FILE}" ] && [ ! -f "${OSM_FILE}" ]; then
     echo "🌍 Downloading latest Ethiopia OSM data from Geofabrik (~130 MB)..."
     mkdir -p "${DATA_DIR}"
     wget -O "${OSM_FILE}" https://download.geofabrik.de/africa/ethiopia-latest.osm.pbf
   fi
 
-  echo "⚙️ Extracting routing graph with car profile..."
-  osrm-extract -p /opt/car.lua "${OSM_FILE}"
+  TARGET_PBF="${ROADS_FILE}"
+  if [ ! -f "${ROADS_FILE}" ] && [ -f "${OSM_FILE}" ]; then
+    TARGET_PBF="${OSM_FILE}"
+  fi
+
+  PROFILE_PATH="/app/docker/profiles/ethiopia-unified.lua"
+  if [ ! -f "${PROFILE_PATH}" ]; then
+    PROFILE_PATH="/opt/car.lua"
+  fi
+
+  echo "⚙️ Extracting routing graph with profile (${PROFILE_PATH})..."
+  osrm-extract -p "${PROFILE_PATH}" "${TARGET_PBF}"
 
   echo "⚙️ Partitioning graph for Multi-Level Dijkstra (MLD)..."
   osrm-partition "${OSRM_BASE}"
@@ -29,8 +49,6 @@ if [ ! -f "${OSRM_BASE}.mldgr" ] && [ ! -f "${OSRM_BASE}.cells" ] && [ ! -f "${O
   osrm-customize "${OSRM_BASE}"
 
   echo "✅ OSRM graph preparation complete!"
-else
-  echo "✅ Found existing pre-compiled OSRM map data."
 fi
 
 # 2. Start OSRM routing engine in background

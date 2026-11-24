@@ -5,6 +5,7 @@ import { OsrmRouteMapper } from "./mappers/osrm-route.mapper";
 
 const PROFILE_MAP: Record<string, string> = {
   driving: "driving",
+  bajaj: "driving",
   cycling: "bicycle",
   walking: "foot",
   motorcycle: "driving",
@@ -43,7 +44,7 @@ export class OsrmRouteProvider implements IRouteProvider {
         const res = await fetch(url.toString(), { signal: controller.signal });
         if (res.ok) {
           const raw = await res.json();
-          const routes = this.mapper.map(raw, this.name);
+          const routes = this.mapper.map(raw, this.name, request.lang || "en");
           return { routes, provider: this.name };
         }
         lastError = new Error(`OSRM (${baseUrl}) returned ${res.status}: ${res.statusText}`);

@@ -1,5 +1,6 @@
 export enum RouteProfile {
   DRIVING = "driving",
+  BAJAJ = "bajaj",
   CYCLING = "cycling",
   WALKING = "walking",
   MOTORCYCLE = "motorcycle",

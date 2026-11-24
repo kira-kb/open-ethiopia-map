@@ -7,6 +7,9 @@ import { Coordinates, Distance, Duration, parseProfile } from "../../domain/valu
 import { PackManRoute } from "../../domain/entities";
 import { RouteCalculated } from "../../domain/events";
 import { crypto } from "../../infrastructure/utils/crypto";
+import { EtaEnhancer } from "../../domain/services/routing/eta-enhancer";
+import { CityGuard } from "../../domain/services/routing/city-guard";
+import { RoadRestrictionService } from "../../domain/services/routing/road-restriction.service";
 
 export interface PlanRouteCommand {
   origin: { lat: number; lng: number };
@@ -15,6 +18,7 @@ export interface PlanRouteCommand {
   profile: string;
   alternatives?: number;
   steps?: boolean;
+  lang?: "en" | "am";
 }
 
 export class PlanRouteUseCase {
@@ -24,6 +28,9 @@ export class PlanRouteUseCase {
     private readonly logger: Logger,
     private readonly metrics: IMetricsRegistry,
     private readonly eventBus: IEventBus,
+    private readonly etaEnhancer: EtaEnhancer = new EtaEnhancer(),
+    private readonly cityGuard: CityGuard = new CityGuard(),
+    private readonly roadRestrictionService: RoadRestrictionService = new RoadRestrictionService(),
   ) {}
 
   async execute(command: PlanRouteCommand): Promise<{
@@ -35,7 +42,17 @@ export class PlanRouteUseCase {
     const stops = (command.stops || []).map((s) => new Coordinates(s.lat, s.lng));
     const profile = parseProfile(command.profile);
 
-    const cacheKey = this.buildCacheKey(origin, destination, stops, profile, command.alternatives);
+    // City & vehicle profile geofence check
+    const cityCheck = this.cityGuard.validateProfileForRegion(origin, destination, profile);
+    if (!cityCheck.isLegalProfile && cityCheck.warning) {
+      this.logger.warn("Vehicle profile warning for region", {
+        city: cityCheck.city,
+        profile,
+        warning: cityCheck.warning,
+      });
+    }
+
+    const cacheKey = this.buildCacheKey(origin, destination, stops, profile, command.alternatives, command.lang);
     const cached = await this.cache.get<any[]>(cacheKey);
     if (cached && Array.isArray(cached) && cached.length > 0) {
       this.logger.info("Route cache hit", { cacheKey });
@@ -85,15 +102,34 @@ export class PlanRouteUseCase {
       profile,
       alternatives: command.alternatives || 0,
       steps: command.steps ?? true,
+      lang: command.lang || "en",
     });
     const durationMs = Date.now() - start;
 
-    await this.cache.set(cacheKey, result.routes, 3600);
+    const enhancedRoutes = result.routes.map((r) => {
+      // Check for active corridor construction or median barriers
+      const restrictionCheck = this.roadRestrictionService.checkRouteRestrictions(
+        r.geometry.coordinates,
+      );
+
+      if (restrictionCheck.hasRestrictions) {
+        this.logger.warn("Route traverses restricted or construction zone", {
+          routeId: r.id,
+          zones: restrictionCheck.violatingZones.map((z) => z.name),
+          isBlocked: restrictionCheck.isBlocked,
+        });
+      }
+
+      const enhanced = this.etaEnhancer.enhance(r, profile);
+      return enhanced.route;
+    });
+
+    await this.cache.set(cacheKey, enhancedRoutes, 3600);
     await this.eventBus.publish(new RouteCalculated(
       origin.toKey(), destination.toKey(), profile, result.provider, durationMs, false,
     ));
 
-    return { routes: result.routes, cached: false };
+    return { routes: enhancedRoutes, cached: false };
   }
 
   private buildCacheKey(
@@ -102,6 +138,7 @@ export class PlanRouteUseCase {
     stops: Coordinates[],
     profile: string,
     alternatives?: number,
+    lang?: string,
   ): string {
     const parts = [
       "route",
@@ -110,6 +147,7 @@ export class PlanRouteUseCase {
       ...stops.map((s) => s.toKey()),
       profile,
       String(alternatives || 0),
+      lang || "en",
     ];
     return crypto.md5(parts.join("|"));
   }

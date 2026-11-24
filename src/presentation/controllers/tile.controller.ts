@@ -2,26 +2,75 @@ import fs from "fs";
 import path from "path";
 import { Request, Response, NextFunction } from "express";
 import { Logger } from "../../domain/interfaces";
+import { PmTilesReader } from "../../infrastructure/tiles/pmtiles.reader";
 
-// 100% Free, Zero API Keys, Unmetered, No Watermarks
 const TILE_SERVERS: Record<string, (z: string, x: string, y: string) => string> = {
-  // Esri Canvas Dark Gray (Clean dark cartography, zero watermark, no API key)
   dark: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`,
-  // Esri Canvas Light Gray (Clean minimal light cartography, zero watermark, no API key)
   light: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${z}/${y}/${x}`,
-  // Esri World Street Map (High-resolution global & Ethiopian road arteries, no API key)
   voyager: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
   street: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
-  // OpenStreetMap Official (Zero watermark, community open-source, no API key)
   osm: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
   standard: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
-  // OpenTopoMap (Contour elevation & topography, no API key)
   topo: (z, x, y) => `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`,
 };
 
 export class TileController {
-  constructor(private readonly logger?: Logger) {}
+  private readonly pmTilesReader: PmTilesReader;
 
+  constructor(
+    private readonly logger?: Logger,
+    pmTilesReader?: PmTilesReader,
+  ) {
+    this.pmTilesReader = pmTilesReader || new PmTilesReader(undefined, logger);
+  }
+
+  /**
+   * Serve Self-Hosted Vector Tiles (MVT) from local PMTiles archive
+   * GET /api/v1/map/tiles/vector/:z/:x/:y.(mvt|pbf)
+   */
+  async serveVector(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const z = String(req.params.z || "");
+      const x = String(req.params.x || "");
+      const y = String(req.params.y || "").replace(/\.(mvt|pbf)$/i, "");
+
+      if (!/^\d+$/.test(z) || !/^\d+$/.test(x) || !/^\d+$/.test(y)) {
+        res.status(400).send("Invalid vector tile coordinates");
+        return;
+      }
+
+      const zNum = parseInt(z, 10);
+      const xNum = parseInt(x, 10);
+      const yNum = parseInt(y, 10);
+
+      if (zNum < 0 || zNum > 20) {
+        res.status(400).send("Zoom level out of range");
+        return;
+      }
+
+      const tile = await this.pmTilesReader.getTile(zNum, xNum, yNum);
+      if (!tile) {
+        res.status(404).send("Vector tile not found");
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/vnd.mapbox-vector-tile");
+      if (tile.isCompressed) {
+        res.setHeader("Content-Encoding", "gzip");
+      }
+      res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("X-Tile-Source", "self-hosted-pmtiles");
+      res.send(Buffer.from(tile.data));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Serve Raster Tiles with Write-Through Local Disk Cache
+   * GET /api/v1/map/tiles/:style/:z/:x/:y.png
+   */
   async serve(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const z = String(req.params.z || "");
@@ -29,7 +78,6 @@ export class TileController {
       const y = String(req.params.y || "").replace(".png", "").replace(".jpg", "");
       const style = String(req.params.style || req.query.style || "dark").toLowerCase();
 
-      // Validate tile coordinates
       if (!/^\d+$/.test(z) || !/^\d+$/.test(x) || !/^\d+$/.test(y)) {
         res.status(400).send("Invalid tile coordinates");
         return;
@@ -41,19 +89,18 @@ export class TileController {
         return;
       }
 
-      // ── Priority 1: Self-Rendered Local Custom Tiles ───────────────
-      // If the platform renders its own tiles, serve directly from data/tiles/{style}/{z}/{x}/{y}.png
+      // Priority 1: Check Local Disk Cache (data/tiles/{style}/{z}/{x}/{y}.png)
       const localCustomTile = path.join(process.cwd(), "data", "tiles", style, z, x, `${y}.png`);
       if (fs.existsSync(localCustomTile)) {
         res.setHeader("Content-Type", "image/png");
-        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+        res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
         res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("X-Tile-Source", "self-hosted-local");
+        res.setHeader("X-Tile-Source", "self-hosted-disk-cache");
         fs.createReadStream(localCustomTile).pipe(res);
         return;
       }
 
-      // ── Priority 2: 100% Free Public Tile Mirrors (No API Key) ────
+      // Priority 2: Fetch and Write-Through to Disk Cache
       const tileUrlBuilder = TILE_SERVERS[style] || TILE_SERVERS.dark;
       const targetUrl = tileUrlBuilder(z, x, y);
 
@@ -77,10 +124,19 @@ export class TileController {
         const buffer = await response.arrayBuffer();
         const contentType = response.headers.get("content-type") || "image/png";
 
+        // Write-through to local disk cache asynchronously
+        try {
+          const tileDir = path.dirname(localCustomTile);
+          fs.mkdirSync(tileDir, { recursive: true });
+          fs.writeFileSync(localCustomTile, Buffer.from(buffer));
+        } catch (writeErr) {
+          this.logger?.warn("Failed to write tile to local disk cache", { error: (writeErr as Error).message });
+        }
+
         res.setHeader("Content-Type", contentType);
-        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+        res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
         res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("X-Tile-Source", "open-free-mirror");
+        res.setHeader("X-Tile-Source", "write-through-cache");
         res.send(Buffer.from(buffer));
       } finally {
         clearTimeout(timeout);
@@ -107,39 +163,53 @@ export class TileController {
         standard: "#e5e7eb",
       };
 
+      const hasVectorTiles = this.pmTilesReader.isAvailable();
+
+      const sourcesConfig = hasVectorTiles
+        ? {
+            "ethiopia-vector-tiles": {
+              type: "vector",
+              tiles: [`${baseUrl}/api/v1/map/tiles/vector/{z}/{x}/{y}.mvt`],
+              minzoom: 0,
+              maxzoom: 15,
+              attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
+            },
+          }
+        : {
+            "ethiopia-raster-tiles": {
+              type: "raster",
+              tiles: [`${baseUrl}/api/v1/map/tiles/${style}/{z}/{x}/{y}.png`],
+              tileSize: 256,
+              attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
+              minzoom: 0,
+              maxzoom: 19,
+            },
+          };
+
+      const baseLayer = hasVectorTiles
+        ? {
+            id: "background",
+            type: "background",
+            paint: { "background-color": backgroundColors[style] || "#0f172a" },
+          }
+        : {
+            id: "ethiopia-base-tiles",
+            type: "raster",
+            source: "ethiopia-raster-tiles",
+            minzoom: 0,
+            maxzoom: 19,
+          };
+
       const styleSpec = {
         version: 8,
         name: `Open Ethiopia Map - ${style.charAt(0).toUpperCase() + style.slice(1)}`,
         metadata: {
           "openethiopiamap:version": "1.0.0",
           "openethiopiamap:style": style,
+          "openethiopiamap:source-type": hasVectorTiles ? "vector" : "raster",
         },
-        sources: {
-          "ethiopia-raster-tiles": {
-            type: "raster",
-            tiles: [`${baseUrl}/api/v1/map/tiles/${style}/{z}/{x}/{y}.png`],
-            tileSize: 256,
-            attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
-            minzoom: 0,
-            maxzoom: 19,
-          },
-        },
-        layers: [
-          {
-            id: "background",
-            type: "background",
-            paint: {
-              "background-color": backgroundColors[style] || "#0f172a",
-            },
-          },
-          {
-            id: "ethiopia-base-tiles",
-            type: "raster",
-            source: "ethiopia-raster-tiles",
-            minzoom: 0,
-            maxzoom: 19,
-          },
-        ],
+        sources: sourcesConfig,
+        layers: [baseLayer],
       };
 
       res.setHeader("Content-Type", "application/json; charset=utf-8");

@@ -33,10 +33,19 @@ import { AutocompleteController } from "./presentation/controllers/autocomplete.
 import { ReverseGeocodeController } from "./presentation/controllers/reverse-geocode.controller";
 import { NearbyController } from "./presentation/controllers/nearby.controller";
 import { HealthController } from "./presentation/controllers/health.controller";
-import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController, ScraperController } from "./presentation/controllers";
+import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController, ScraperController, AdminPortalController, MatrixController } from "./presentation/controllers";
+import { TelemetryController } from "./presentation/controllers/telemetry.controller";
+import { MapMatchController } from "./presentation/controllers/map-match.controller";
+import { IngestTelemetryUseCase } from "./application/use-cases/ingest-telemetry.use-case";
+import { MapMatchUseCase } from "./application/use-cases/map-match.use-case";
+import { ComputeMatrixUseCase } from "./application/use-cases/compute-matrix.use-case";
 import { createRouter } from "./presentation/router";
 import { createErrorHandler } from "./presentation/middleware/error-handler";
 import { createRequestLogger } from "./presentation/middleware/request-logger";
+import { createRateLimiter } from "./presentation/middleware/rate-limiter";
+import { createApiKeyAuthMiddleware, createAdminAuthMiddleware } from "./presentation/middleware/api-key-auth";
+import { ApiKeyStore } from "./infrastructure/database/api-key.store";
+import { AdminAuthService } from "./application/services/admin-auth.service";
 
 import { PlaceImportWorker, CacheWarmWorker, ConfidenceWorker, RedisEventBridge } from "./infrastructure/workers";
 import { PrismaLocationConfidenceRepository } from "./infrastructure/database/prisma-confidence.repository";
@@ -155,6 +164,19 @@ async function main(): Promise<void> {
   const tileController = new TileController(logger);
   const scraperService = new ScraperService(placeRepo, logger);
   const scraperController = new ScraperController(scraperService, logger);
+  const ingestTelemetry = new IngestTelemetryUseCase(cache, logger);
+  const telemetryController = new TelemetryController(ingestTelemetry, logger);
+  const mapMatchUseCase = new MapMatchUseCase(logger);
+  const mapMatchController = new MapMatchController(mapMatchUseCase, logger);
+  const computeMatrixUseCase = new ComputeMatrixUseCase(logger);
+  const matrixController = new MatrixController(computeMatrixUseCase, logger);
+
+  // ── API Key & Developer Portal Auth ──────────────────────────
+  const apiKeyStore = new ApiKeyStore(undefined, logger);
+  const adminAuthService = new AdminAuthService(apiKeyStore);
+  const adminPortalController = new AdminPortalController(apiKeyStore, adminAuthService, logger);
+  const apiKeyAuthMiddleware = createApiKeyAuthMiddleware(apiKeyStore, logger);
+  const adminAuthMiddleware = createAdminAuthMiddleware(adminAuthService);
 
   const app = express();
   app.use(
@@ -162,7 +184,14 @@ async function main(): Promise<void> {
       contentSecurityPolicy: false,
     }),
   );
-  app.use(cors());
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
+    : "*";
+
+  app.use(cors({ origin: allowedOrigins }));
+  app.use("/api/v1/map/route", createRateLimiter(cache, { windowMs: 60000, max: 60 }));
+  app.use("/api/v1/map/matrix", createRateLimiter(cache, { windowMs: 60000, max: 120 }));
+  app.use("/api/v1/map/traffic/telemetry", createRateLimiter(cache, { windowMs: 60000, max: 300 }));
   app.use(express.json({ limit: "10mb" }));
   app.use(createRequestLogger(logger));
 
@@ -178,6 +207,12 @@ async function main(): Promise<void> {
     locationIngestController,
     tileController,
     scraperController,
+    telemetryController,
+    mapMatchController,
+    matrixController,
+    adminPortalController,
+    apiKeyAuthMiddleware,
+    adminAuthMiddleware,
   );
   app.use(router);
   app.use(createErrorHandler(logger));

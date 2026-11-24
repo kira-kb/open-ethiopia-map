@@ -18,6 +18,7 @@ export class RouteController {
         profile: parsed.profile,
         alternatives: parsed.alternatives,
         steps: parsed.steps,
+        lang: parsed.lang,
       });
 
       const response: RouteResponseDto = {

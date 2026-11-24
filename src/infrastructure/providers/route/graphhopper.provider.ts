@@ -4,6 +4,7 @@ import { GraphHopperRouteMapper } from "./mappers/graphhopper-route.mapper";
 
 const PROFILE_MAP: Record<string, string> = {
   driving: "car",
+  bajaj: "car",
   cycling: "bike",
   walking: "foot",
   motorcycle: "car",

@@ -9,6 +9,7 @@ export interface RouteRequest {
   alternatives?: number;
   steps?: boolean;
   annotations?: boolean;
+  lang?: "en" | "am";
 }
 
 export interface RouteResult {
