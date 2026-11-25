@@ -16,6 +16,11 @@ const TILE_SERVERS: Record<string, (z: string, x: string, y: string) => string> 
   topo: (z, x, y) => `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`,
 };
 
+function parseBooleanParam(value: unknown): boolean {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return String(raw ?? "").toLowerCase() === "true";
+}
+
 export class TileController {
   private readonly pmTilesReader: PmTilesReader;
 
@@ -56,14 +61,14 @@ export class TileController {
         return;
       }
 
+      // PmTilesReader returns already-decompressed MVT bytes. Setting
+      // Content-Encoding: gzip here makes the browser try to gunzip raw
+      // protobuf data, which fails silently and leaves the map blank.
       res.setHeader("Content-Type", "application/vnd.mapbox-vector-tile");
-      if (tile.isCompressed) {
-        res.setHeader("Content-Encoding", "gzip");
-      }
       res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("X-Tile-Source", "self-hosted-pmtiles");
-      res.send(Buffer.from(tile.data));
+      res.send(Buffer.from(tile));
     } catch (err) {
       next(err);
     }
@@ -148,11 +153,54 @@ export class TileController {
     }
   }
 
+  /**
+   * Serve self-hosted font glyph PBFs used by MapLibre symbol layers.
+   * GET /api/v1/map/fonts/:fontstack/:range.pbf
+   */
+  async serveGlyphs(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const fontstack = String(req.params.fontstack || "");
+      const range = String(req.params.range || "").replace(/\.pbf$/i, "");
+
+      // Glyph paths are built from request input: allow only plain font names
+      // and numeric ranges so path traversal cannot escape the font directory.
+      if (!/^[A-Za-z0-9 _-]+$/.test(fontstack) || !/^\d+-\d+$/.test(range)) {
+        res.status(400).send("Invalid glyph range");
+        return;
+      }
+
+      const relative = path.join("fonts", fontstack, `${range}.pbf`);
+      const glyphPath = [
+        path.join(process.cwd(), "assets", relative),
+        path.join("/app", "assets", relative),
+        path.resolve(__dirname, "../../../assets", relative),
+      ].find((candidate) => fs.existsSync(candidate));
+
+      if (!glyphPath) {
+        res.status(404).send("Glyph range not found");
+        return;
+      }
+
+      res.setHeader("Content-Type", "application/x-protobuf");
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("X-Glyph-Source", "self-hosted");
+      fs.createReadStream(glyphPath).pipe(res);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async serveStyle(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const rawStyle = String(req.params.style || "dark").replace(/\.json$/i, "").toLowerCase();
       const style = TILE_SERVERS[rawStyle] ? rawStyle : "dark";
       const lang = (String(req.query?.lang || "default").toLowerCase() as "en" | "am" | "default");
+      // Road hierarchy colors are opt-in. Accepted aliases keep older links working.
+      const showMainRoads =
+        parseBooleanParam(req.query?.showMainRoads) ||
+        parseBooleanParam(req.query?.mainRoads) ||
+        parseBooleanParam(req.query?.roadColors);
 
       const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
       const host = req.get("host") || "localhost:8084";
@@ -161,11 +209,12 @@ export class TileController {
       const hasVectorTiles = this.pmTilesReader.isAvailable();
 
       res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      // Style output depends on query params, so never serve a stale cached copy.
+      res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Access-Control-Allow-Origin", "*");
 
       if (hasVectorTiles) {
-        const vectorStyle = generateVectorStyle({ baseUrl, style, lang });
+        const vectorStyle = generateVectorStyle({ baseUrl, style, lang, showMainRoads });
         res.json(vectorStyle);
         return;
       }
@@ -191,7 +240,7 @@ export class TileController {
             type: "raster",
             tiles: [`${baseUrl}/api/v1/map/tiles/${style}/{z}/{x}/{y}.png`],
             tileSize: 256,
-            attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
+            attribution: "Open Ethiopia Map",
             minzoom: 0,
             maxzoom: 19,
           },

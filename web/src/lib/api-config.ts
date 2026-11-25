@@ -54,7 +54,7 @@ export const ADDIS_LANDMARKS: Landmark[] = [
     amharicName: "ቦሌ ዓለም አቀፍ አውሮፕላን ማረፊያ",
     category: "Airport / Transit",
     city: "Addis Ababa",
-    coords: [38.7993, 8.9774],
+    coords: [38.795694, 8.9832295],
     description: "East Africa's major international aviation gateway and freight hub",
   },
   {
@@ -354,7 +354,7 @@ export const DEMO_ROUTES: DemoRoute[] = [
     titleAmharic: "መስቀል አደባባይ → ቦሌ አውሮፕላን ማረፊያ",
     city: "Addis Ababa",
     origin: { name: "Meskel Square", nameAmharic: "መስቀል አደባባይ", coords: [38.7578, 8.9806] },
-    destination: { name: "Bole Airport", nameAmharic: "ቦሌ አውሮፕላን ማረፊያ", coords: [38.7993, 8.9774] },
+    destination: { name: "Bole Airport", nameAmharic: "ቦሌ አውሮፕላን ማረፊያ", coords: [38.795694, 8.9832295] },
     profile: "driving",
     fallbackCoordinates: [
       [38.7578, 8.9806],
@@ -363,7 +363,7 @@ export const DEMO_ROUTES: DemoRoute[] = [
       [38.7840, 8.9890],
       [38.7877, 8.9961],
       [38.7930, 8.9880],
-      [38.7993, 8.9774],
+      [38.795694, 8.9832295],
     ],
   },
   {

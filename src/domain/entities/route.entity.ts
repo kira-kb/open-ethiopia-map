@@ -17,6 +17,8 @@ export interface RouteStep {
 export interface RouteWaypoint {
   index: number;
   coordinates: Coordinates;
+  /** Distance in meters from the requested point to the snapped road. */
+  snapDistance?: number;
 }
 
 export class PackManRoute {

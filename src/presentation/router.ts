@@ -163,6 +163,8 @@ export function createRouter(
     router.get("/api/v1/map/tiles/:style/:z/:x/:y", tileController.serve.bind(tileController));
     router.get("/api/v1/map/tiles/:z/:x/:y.png", tileController.serve.bind(tileController));
     router.get("/api/v1/map/tiles/:z/:x/:y", tileController.serve.bind(tileController));
+    router.get("/api/v1/map/fonts/:fontstack/:range.pbf", tileController.serveGlyphs.bind(tileController));
+    router.get("/api/v1/map/fonts/:fontstack/:range", tileController.serveGlyphs.bind(tileController));
   }
 
   if (locationIngestController) {

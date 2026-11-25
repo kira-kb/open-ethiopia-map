@@ -8,7 +8,7 @@ const ENDPOINTS = [
     title: "Turn-by-Turn Route Planning",
     desc: "Computes optimal driving, cycling, or walking route geometry (GeoJSON LineString) between coordinates, with distance, duration, and step maneuvers.",
     example: `POST ${API_BASE_URL}/api/v1/map/route
-{ "origin": { "lat": 8.9806, "lng": 38.7578 }, "destination": { "lat": 8.9774, "lng": 38.7993 }, "profile": "bajaj", "lang": "am" }`,
+{ "origin": { "lat": 8.9806, "lng": 38.7578 }, "destination": { "lat": 8.9832295, "lng": 38.795694 }, "profile": "bajaj", "lang": "am" }`,
   },
   {
     method: "POST",

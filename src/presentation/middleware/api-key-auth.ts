@@ -18,7 +18,7 @@ export interface AuthenticatedRequest extends Request {
 
 export function createApiKeyAuthMiddleware(apiKeyStore: ApiKeyStore, logger?: Logger) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    // 1. Whitelist open public routes: root, health, admin portal, playground, and map tiles/styles (100% free, unmetered)
+    // 1. Whitelist open public routes: root, health, admin portal, playground, and map tiles/styles/fonts (100% free, unmetered)
     const path = req.path;
     const origUrl = req.originalUrl || req.url || "";
     if (
@@ -31,8 +31,10 @@ export function createApiKeyAuthMiddleware(apiKeyStore: ApiKeyStore, logger?: Lo
       path.startsWith("/api/v1/admin") ||
       path.startsWith("/styles") ||
       path.startsWith("/tiles") ||
+      path.startsWith("/fonts") ||
       origUrl.includes("/styles") ||
-      origUrl.includes("/tiles")
+      origUrl.includes("/tiles") ||
+      origUrl.includes("/fonts")
     ) {
       next();
       return;

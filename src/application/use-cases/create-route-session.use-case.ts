@@ -27,6 +27,7 @@ export class CreateRouteSessionUseCase {
     private readonly logger: Logger,
     private readonly metrics: IMetricsRegistry,
     private readonly eventBus: IEventBus,
+    private readonly cacheNamespace: string = "v1",
   ) {}
 
   async execute(command: CreateRouteSessionCommand): Promise<{
@@ -134,6 +135,7 @@ export class CreateRouteSessionUseCase {
   private buildCacheKey(command: CreateRouteSessionCommand): string {
     const parts = [
       "route",
+      this.cacheNamespace,
       `${command.origin.lat.toFixed(6)},${command.origin.lng.toFixed(6)}`,
       `${command.destination.lat.toFixed(6)},${command.destination.lng.toFixed(6)}`,
       ...(command.stops || []).map((s) => `${s.lat.toFixed(6)},${s.lng.toFixed(6)}`),

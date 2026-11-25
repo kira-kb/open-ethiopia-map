@@ -118,7 +118,7 @@ curl -X POST "${API_BASE_URL}/api/v1/map/route" \\
   -H "Content-Type: application/json" \\
   -d '{
     "origin": { "lat": 8.9806, "lng": 38.7578 },
-    "destination": { "lat": 8.9774, "lng": 38.7993 },
+    "destination": { "lat": 8.9832295, "lng": 38.795694 },
     "profile": "driving",
     "steps": true
   }'

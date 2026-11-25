@@ -10,7 +10,9 @@ api_version = 4
 Set = require('lib/set')
 Sequence = require('lib/sequence')
 Handlers = require('lib/way_handlers')
-find_access_tag = require('lib/access').find_access_tag
+local access = require('lib/access')
+find_access_tag = access.find_access_tag
+resolve_access = access.resolve_access
 limit = require('lib/maxspeed').limit
 
 function setup()
@@ -78,18 +80,30 @@ function setup()
       ["horrible"]     = 6
     },
 
-    -- Allowed highway tags (strictly motorized drivable roads)
+    -- Access values that explicitly allow public motorized traffic.
     access_tag_whitelist = Set {
-      'yes', 'motorcar', 'motorcycle', 'vehicle', 'permissive', 'destination'
+      'yes', 'motorcar', 'motorcycle', 'motor_vehicle', 'vehicle', 'permissive', 'designated'
     },
 
+    -- Never route through restricted/private compounds (airport service roads,
+    -- gated facilities, emergency/agricultural roads, etc.).
     access_tag_blacklist = Set {
-      'no', 'private', 'agricultural', 'forestry', 'emergency'
+      'no', 'private', 'customers', 'delivery', 'destination', 'emergency',
+      'agricultural', 'forestry', 'military', 'official', 'restricted',
+      'permit', 'residents', 'psv', 'bus', 'taxi', 'foot', 'airport'
     },
 
-    -- Highway types that are drivable
+    -- Used by lib/access.resolve_access() when values are semicolon-separated.
+    restricted_access_tag_list = Set {},
+
+    -- OSRM tag keys checked in priority order for way/node access.
+    access_tags_hierarchy = Sequence {
+      'motorcar', 'motor_vehicle', 'vehicle', 'access'
+    },
+
+    -- Service ways that are never routable for public routing.
     service_tag_forbidden = Set {
-      'emergency_access'
+      'emergency_access', 'airport'
     },
 
     -- Barrier handling
@@ -101,9 +115,15 @@ end
 
 function process_node(profile, node, result, relations)
   local barrier = node:get_value_by_key("barrier")
-  local access = find_access_tag(node, profile.access_tag_whitelist)
-  
-  if barrier and not profile.barrier_whitelist[barrier] and access ~= 'yes' then
+  local way_access = resolve_access(find_access_tag(node, profile.access_tags_hierarchy), profile)
+
+  -- A gate/lift_gate tagged private is an illegal shortcut even though the
+  -- barrier type itself is normally passable.
+  if way_access and profile.access_tag_blacklist[way_access] then
+    result.barrier = true
+  end
+
+  if barrier and not profile.barrier_whitelist[barrier] and way_access ~= 'yes' then
     result.barrier = true
   end
 
@@ -124,6 +144,18 @@ function process_way(profile, way, result, relations)
 
   -- Exclude pedestrian stairs and footpaths from motorized vehicle routing
   if data.highway == 'steps' or data.highway == 'footway' or data.highway == 'path' or data.highway == 'pedestrian' or data.highway == 'cycleway' then
+    return
+  end
+
+  -- Enforce access restrictions. The previous profile declared these sets but
+  -- never applied them to ways, so airport/private service roads were routable.
+  local access_value = resolve_access(find_access_tag(way, profile.access_tags_hierarchy), profile)
+  if access_value and profile.access_tag_blacklist[access_value] then
+    return
+  end
+
+  local service = way:get_value_by_key('service')
+  if service and profile.service_tag_forbidden[service] then
     return
   end
 

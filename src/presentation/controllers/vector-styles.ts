@@ -7,10 +7,15 @@ export interface StyleOptions {
   baseUrl: string;
   style?: "dark" | "light" | "voyager" | "street" | string;
   lang?: "en" | "am" | "default";
+  /**
+   * Opt in to color-coded major roads (motorway/trunk/primary/secondary).
+   * Default is false: every road uses one neutral color, like mapcn.dev.
+   */
+  showMainRoads?: boolean;
 }
 
 export function generateVectorStyle(options: StyleOptions): any {
-  const { baseUrl, style = "dark", lang = "default" } = options;
+  const { baseUrl, style = "dark", lang = "default", showMainRoads = false } = options;
   const isDark = style === "dark";
 
   // Dynamic text expression preferring user language
@@ -21,8 +26,9 @@ export function generateVectorStyle(options: StyleOptions): any {
       ? ["coalesce", ["get", "name:en"], ["get", "name:am"], ["get", "name"], ""]
       : ["coalesce", ["get", "name:am"], ["get", "name:en"], ["get", "name"], ""];
 
-  // Color schemes
-  const colors = isDark
+  // Color schemes. Default keeps all roads neutral (mapcn-like); the original
+  // bright hierarchy is available only when explicitly requested.
+  const baseColors = isDark
     ? {
         background: "#0b0f19",
         landcover: "#0f172a",
@@ -36,15 +42,15 @@ export function generateVectorStyle(options: StyleOptions): any {
         building3D: "#1e293b",
         boundary: "#475569",
         tunnel: "#111827",
-        roadMotorwayCasing: "#b45309",
-        roadMotorway: "#f59e0b",
-        roadTrunkCasing: "#b45309",
-        roadTrunk: "#fbbf24",
-        roadPrimary: "#38bdf8",
-        roadSecondary: "#0284c7",
-        roadTertiary: "#475569",
-        roadMinor: "#334155",
-        roadService: "#1e293b",
+        roadMotorwayCasing: "#1e293b",
+        roadMotorway: "#414758",
+        roadTrunkCasing: "#1e293b",
+        roadTrunk: "#414758",
+        roadPrimary: "#414758",
+        roadSecondary: "#414758",
+        roadTertiary: "#414758",
+        roadMinor: "#414758",
+        roadService: "#414758",
         roadLabel: "#cbd5e1",
         roadLabelHalo: "#0b0f19",
         placeCity: "#f8fafc",
@@ -66,15 +72,15 @@ export function generateVectorStyle(options: StyleOptions): any {
         building3D: "#cbd5e1",
         boundary: "#94a3b8",
         tunnel: "#f1f5f9",
-        roadMotorwayCasing: "#c2410c",
-        roadMotorway: "#ea580c",
-        roadTrunkCasing: "#c2410c",
-        roadTrunk: "#f97316",
-        roadPrimary: "#0284c7",
-        roadSecondary: "#0369a1",
-        roadTertiary: "#94a3b8",
+        roadMotorwayCasing: "#e2e8f0",
+        roadMotorway: "#cbd5e1",
+        roadTrunkCasing: "#e2e8f0",
+        roadTrunk: "#cbd5e1",
+        roadPrimary: "#cbd5e1",
+        roadSecondary: "#cbd5e1",
+        roadTertiary: "#cbd5e1",
         roadMinor: "#cbd5e1",
-        roadService: "#e2e8f0",
+        roadService: "#cbd5e1",
         roadLabel: "#1e293b",
         roadLabelHalo: "#ffffff",
         placeCity: "#0f172a",
@@ -83,6 +89,26 @@ export function generateVectorStyle(options: StyleOptions): any {
         placeLabelHalo: "#ffffff",
         aeroway: "#e2e8f0",
       };
+
+  const roadHierarchyColors = isDark
+    ? {
+        roadMotorwayCasing: "#b45309",
+        roadMotorway: "#f59e0b",
+        roadTrunkCasing: "#b45309",
+        roadTrunk: "#fbbf24",
+        roadPrimary: "#38bdf8",
+        roadSecondary: "#0284c7",
+      }
+    : {
+        roadMotorwayCasing: "#c2410c",
+        roadMotorway: "#ea580c",
+        roadTrunkCasing: "#c2410c",
+        roadTrunk: "#f97316",
+        roadPrimary: "#0284c7",
+        roadSecondary: "#0369a1",
+      };
+
+  const colors = showMainRoads ? { ...baseColors, ...roadHierarchyColors } : baseColors;
 
   const SOURCE_ID = "openmaptiles";
 
@@ -94,6 +120,7 @@ export function generateVectorStyle(options: StyleOptions): any {
       "openethiopiamap:style": style,
       "openethiopiamap:engine": "planetiler-vector",
       "openethiopiamap:schema": "openmaptiles",
+      "openethiopiamap:main-roads": showMainRoads ? "colored" : "uniform",
     },
     sources: {
       [SOURCE_ID]: {
@@ -101,10 +128,10 @@ export function generateVectorStyle(options: StyleOptions): any {
         tiles: [`${baseUrl}/api/v1/map/tiles/vector/{z}/{x}/{y}.mvt`],
         minzoom: 0,
         maxzoom: 14,
-        attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
+        attribution: "Open Ethiopia Map",
       },
     },
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+    glyphs: `${baseUrl}/api/v1/map/fonts/{fontstack}/{range}.pbf`,
     layers: [
       // 1. Background
       {
@@ -281,6 +308,7 @@ export function generateVectorStyle(options: StyleOptions): any {
         paint: {
           "line-color": colors.roadSecondary,
           "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 3, 17, 7],
+          "line-opacity": showMainRoads ? 0.6 : 1,
         },
       },
 
@@ -296,6 +324,7 @@ export function generateVectorStyle(options: StyleOptions): any {
         paint: {
           "line-color": colors.roadPrimary,
           "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1.2, 12, 3.5, 17, 9],
+          "line-opacity": showMainRoads ? 0.6 : 1,
         },
       },
 
@@ -311,6 +340,7 @@ export function generateVectorStyle(options: StyleOptions): any {
         paint: {
           "line-color": colors.roadTrunk,
           "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 11, 4, 17, 10],
+          "line-opacity": showMainRoads ? 0.6 : 1,
         },
       },
 
@@ -326,6 +356,7 @@ export function generateVectorStyle(options: StyleOptions): any {
         paint: {
           "line-color": colors.roadMotorway,
           "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.8, 11, 5, 17, 11],
+          "line-opacity": showMainRoads ? 0.6 : 1,
         },
       },
 

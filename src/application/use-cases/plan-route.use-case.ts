@@ -11,6 +11,9 @@ import { EtaEnhancer } from "../../domain/services/routing/eta-enhancer";
 import { CityGuard } from "../../domain/services/routing/city-guard";
 import { RoadRestrictionService } from "../../domain/services/routing/road-restriction.service";
 
+/** Warn when an endpoint lands this far from the requested coordinate. */
+const MAX_ENDPOINT_SNAP_METERS = 150;
+
 export interface PlanRouteCommand {
   origin: { lat: number; lng: number };
   destination: { lat: number; lng: number };
@@ -31,6 +34,7 @@ export class PlanRouteUseCase {
     private readonly etaEnhancer: EtaEnhancer = new EtaEnhancer(),
     private readonly cityGuard: CityGuard = new CityGuard(),
     private readonly roadRestrictionService: RoadRestrictionService = new RoadRestrictionService(),
+    private readonly cacheNamespace: string = "v1",
   ) {}
 
   async execute(command: PlanRouteCommand): Promise<{
@@ -74,6 +78,7 @@ export class PlanRouteUseCase {
             wp.coordinates?.latitude ?? wp.lat ?? 0,
             wp.coordinates?.longitude ?? wp.lng ?? 0,
           ),
+          snapDistance: wp.snapDistance ?? wp.distance,
         }));
 
         const steps = (r.steps || []).map((s: any) => {
@@ -107,6 +112,21 @@ export class PlanRouteUseCase {
     const durationMs = Date.now() - start;
 
     const enhancedRoutes = result.routes.map((r) => {
+      const farSnaps = (r.waypoints || []).filter(
+        (wp) => (wp.snapDistance ?? 0) > MAX_ENDPOINT_SNAP_METERS,
+      );
+      if (farSnaps.length) {
+        this.logger.warn("Route endpoint snapped far from requested point", {
+          routeId: r.id,
+          waypoints: farSnaps.map((wp) => ({
+            index: wp.index,
+            snapDistance: wp.snapDistance,
+            lat: wp.coordinates.latitude,
+            lng: wp.coordinates.longitude,
+          })),
+        });
+      }
+
       // Check for active corridor construction or median barriers
       const restrictionCheck = this.roadRestrictionService.checkRouteRestrictions(
         r.geometry.coordinates,
@@ -142,6 +162,7 @@ export class PlanRouteUseCase {
   ): string {
     const parts = [
       "route",
+      this.cacheNamespace,
       origin.toKey(),
       destination.toKey(),
       ...stops.map((s) => s.toKey()),

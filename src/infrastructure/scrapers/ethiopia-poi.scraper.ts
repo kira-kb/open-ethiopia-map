@@ -258,8 +258,9 @@ const SEED_ETHIOPIAN_POIS = [
   {
     name: "Bole International Airport Terminal 2",
     amharicName: "ቦሌ ዓለም አቀፍ አውሮፕላን ማረፊያ ተርሚናል 2",
-    lat: 8.9774,
-    lng: 38.7993,
+    // Public terminal entrance/curbside, not the runway/apron centroid.
+    lat: 8.9832295,
+    lng: 38.795694,
     city: "Addis Ababa",
     subcity: "Bole",
     locationType: LocationType.AIRPORT,

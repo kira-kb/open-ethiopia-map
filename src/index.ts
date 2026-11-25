@@ -21,6 +21,7 @@ import { ScraperService } from "./infrastructure/scrapers/scraper.service";
 import { PhotonGeocodeProvider } from "./infrastructure/providers/geocode/photon.provider";
 import { RouteProviderRegistry } from "./infrastructure/providers/registry/route-provider.registry";
 import { GeocodeProviderRegistry } from "./infrastructure/providers/registry/geocode-provider.registry";
+import { routeCacheNamespace } from "./infrastructure/utils/route-cache-namespace";
 
 import { PlanRouteUseCase } from "./application/use-cases/plan-route.use-case";
 import { SearchPlacesUseCase, SearchPipeline } from "./application/use-cases";
@@ -103,7 +104,10 @@ async function main(): Promise<void> {
   const pipeline = new SearchPipeline(searchSources, cache, logger);
 
   // ── Application ──────────────────────────────────────────────
-  const planRoute = new PlanRouteUseCase(routeRegistry, cache, logger, metrics, eventBus);
+  const cacheNamespace = routeCacheNamespace();
+  const planRoute = new PlanRouteUseCase(
+    routeRegistry, cache, logger, metrics, eventBus, undefined, undefined, undefined, cacheNamespace,
+  );
   const searchPlaces = new SearchPlacesUseCase(pipeline, logger, metrics, eventBus);
   const reverseGeocode = new ReverseGeocodeUseCase(placeRepo, geocodeRegistry, cache, logger, metrics, eventBus);
   const nearbySearch = new NearbySearchUseCase(placeRepo, cache, logger);
@@ -115,7 +119,7 @@ async function main(): Promise<void> {
   const routeSessionRepo = new PrismaRouteSessionRepository(routeSessionPrisma);
   const sessionCache = new SessionCache(cache);
   const createRouteSession = new CreateRouteSessionUseCase(
-    routeSessionRepo, planRoute, cache, sessionCache, logger, metrics, eventBus,
+    routeSessionRepo, planRoute, cache, sessionCache, logger, metrics, eventBus, cacheNamespace,
   );
   const getRouteSession = new GetRouteSessionUseCase(routeSessionRepo, sessionCache, logger);
   const replanRouteSession = new ReplanRouteSessionUseCase(routeSessionRepo, planRoute, sessionCache, logger, eventBus);

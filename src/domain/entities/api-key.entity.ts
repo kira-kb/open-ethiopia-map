@@ -54,6 +54,7 @@ export class ApiKey {
     return (
       path.startsWith("/api/v1/map/tiles") ||
       path.startsWith("/api/v1/map/styles") ||
+      path.startsWith("/api/v1/map/fonts") ||
       path.startsWith("/api/v1/map/autocomplete") ||
       path.startsWith("/api/v1/map/nearby") ||
       path.startsWith("/api/v1/map/reverse-geocode")

@@ -45,6 +45,7 @@ export class RouteController {
                 index: wp.index,
                 lat: wp.coordinates?.latitude ?? (wp as any).lat ?? 0,
                 lng: wp.coordinates?.longitude ?? (wp as any).lng ?? 0,
+                snapDistance: wp.snapDistance ?? (wp as any).distance,
               })),
               steps: r.steps && r.steps.length > 0 ? r.steps.map((s) => {
                 const sDist = typeof s.distance?.inMeters === "function" ? s.distance.inMeters() : (typeof s.distance?.value === "number" ? s.distance.value : 0);

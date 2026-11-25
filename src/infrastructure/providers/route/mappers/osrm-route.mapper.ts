@@ -63,6 +63,7 @@ export class OsrmRouteMapper {
         (response.waypoints || []).map((wp, i) => ({
           index: i,
           coordinates: new Coordinates(wp.location[1], wp.location[0]),
+          snapDistance: Number.isFinite(wp.distance) ? wp.distance : undefined,
         })),
         providerName,
         (route.legs?.[0]?.steps || []).map((step) => ({

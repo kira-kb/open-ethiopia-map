@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { PMTiles, Source, RangeResponse, Compression } from "pmtiles";
+import { PMTiles, Source, RangeResponse } from "pmtiles";
 import { Logger } from "../../domain/interfaces";
 
 export class NodeFsSource implements Source {
@@ -84,24 +84,21 @@ export class PmTilesReader {
     return this.isLoaded && this.pmtilesInstance !== null;
   }
 
-  async getTile(z: number, x: number, y: number): Promise<{ data: ArrayBuffer; isCompressed: boolean } | null> {
+  async getTile(z: number, x: number, y: number): Promise<ArrayBuffer | null> {
     if (!this.isAvailable() || !this.pmtilesInstance) {
       return null;
     }
 
     try {
+      // PMTiles.getZxy() already decompresses the tile according to the
+      // archive's tileCompression setting. The returned bytes are raw MVT,
+      // so callers must NOT set Content-Encoding: gzip on the HTTP response.
       const response = await this.pmtilesInstance.getZxy(z, x, y);
       if (!response || !response.data) {
         return null;
       }
 
-      const header = await this.pmtilesInstance.getHeader();
-      const isCompressed = header.tileCompression === Compression.Gzip;
-
-      return {
-        data: response.data,
-        isCompressed,
-      };
+      return response.data;
     } catch (err) {
       this.logger?.warn("Error reading vector tile from PMTiles", { z, x, y, error: (err as Error).message });
       return null;

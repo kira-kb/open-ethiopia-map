@@ -11,16 +11,42 @@ mkdir -p "${DATA_DIR}"
 ROADS_OSRM="${DATA_DIR}/ethiopia-roads.osrm"
 LATEST_OSRM="${DATA_DIR}/ethiopia-latest.osrm"
 
-# Prefer pre-compiled graph if available on volume
-if [ -f "${ROADS_OSRM}.mldgr" ] || [ -f "${ROADS_OSRM}.partition" ] || [ -f "${ROADS_OSRM}.cells" ]; then
+PROFILE_PATH="/app/docker/profiles/ethiopia-unified.lua"
+if [ ! -f "${PROFILE_PATH}" ]; then
+  PROFILE_PATH="./docker/profiles/ethiopia-unified.lua"
+fi
+if [ ! -f "${PROFILE_PATH}" ]; then
+  PROFILE_PATH="/opt/car.lua"
+fi
+
+if [ -d "/opt/lib" ] && [ ! -d "/app/docker/profiles/lib" ]; then
+  mkdir -p "/app/docker/profiles/lib"
+  cp -r /opt/lib/* "/app/docker/profiles/lib/" 2>/dev/null || true
+fi
+export LUA_PATH="/opt/?.lua;/opt/?/init.lua;/app/docker/profiles/?.lua;/app/docker/profiles/?/init.lua;${LUA_PATH:-};;"
+
+PROFILE_SUM=$(md5sum "${PROFILE_PATH}" | awk '{print $1}')
+PROFILE_STAMP="${DATA_DIR}/routing-profile.md5"
+PROFILE_CURRENT=no
+if [ -f "${PROFILE_STAMP}" ] && [ "$(cat "${PROFILE_STAMP}")" = "${PROFILE_SUM}" ]; then
+  PROFILE_CURRENT=yes
+fi
+
+# Prefer pre-compiled graph if it was built with the current routing profile.
+if [ "${PROFILE_CURRENT}" = yes ] && { [ -f "${ROADS_OSRM}.mldgr" ] || [ -f "${ROADS_OSRM}.partition" ] || [ -f "${ROADS_OSRM}.cells" ]; }; then
   OSRM_BASE="${ROADS_OSRM}"
   echo "✅ Found pre-compiled lightweight road graph: ${OSRM_BASE}"
-elif [ -f "${LATEST_OSRM}.mldgr" ] || [ -f "${LATEST_OSRM}.partition" ] || [ -f "${LATEST_OSRM}.cells" ]; then
+elif [ "${PROFILE_CURRENT}" = yes ] && { [ -f "${LATEST_OSRM}.mldgr" ] || [ -f "${LATEST_OSRM}.partition" ] || [ -f "${LATEST_OSRM}.cells" ]; }; then
   OSRM_BASE="${LATEST_OSRM}"
   echo "✅ Found pre-compiled standard map graph: ${OSRM_BASE}"
 else
-  echo "📥 Pre-compiled OSRM graph not found. Checking OSM data..."
-  
+  if [ "${PROFILE_CURRENT}" != yes ]; then
+    echo "♻️ Routing profile changed (or stamp missing); rebuilding OSRM graph..."
+    rm -f "${ROADS_OSRM}".* "${LATEST_OSRM}".*
+  else
+    echo "📥 Pre-compiled OSRM graph not found. Checking OSM data..."
+  fi
+
   ROADS_FILE="${DATA_DIR}/ethiopia-roads.osm.pbf"
   OSM_FILE="${DATA_DIR}/ethiopia-latest.osm.pbf"
 
@@ -44,20 +70,6 @@ else
   echo "🎯 Selected PBF source: ${TARGET_PBF}"
   echo "🎯 Derived OSRM base:   ${OSRM_BASE}"
 
-  PROFILE_PATH="/app/docker/profiles/ethiopia-unified.lua"
-  if [ ! -f "${PROFILE_PATH}" ]; then
-    PROFILE_PATH="./docker/profiles/ethiopia-unified.lua"
-  fi
-  if [ ! -f "${PROFILE_PATH}" ]; then
-    PROFILE_PATH="/opt/car.lua"
-  fi
-
-  if [ -d "/opt/lib" ] && [ ! -d "/app/docker/profiles/lib" ]; then
-    mkdir -p "/app/docker/profiles/lib"
-    cp -r /opt/lib/* "/app/docker/profiles/lib/" 2>/dev/null || true
-  fi
-  export LUA_PATH="/opt/?.lua;/opt/?/init.lua;/app/docker/profiles/?.lua;/app/docker/profiles/?/init.lua;${LUA_PATH:-};;"
-
   echo "⚙️ Extracting routing graph with profile (${PROFILE_PATH})..."
   osrm-extract -p "${PROFILE_PATH}" "${TARGET_PBF}"
 
@@ -67,6 +79,7 @@ else
   echo "⚙️ Customizing speed & turn weights..."
   osrm-customize "${OSRM_BASE}"
 
+  echo "${PROFILE_SUM}" > "${PROFILE_STAMP}"
   echo "✅ OSRM graph preparation complete: ${OSRM_BASE}"
 fi
 

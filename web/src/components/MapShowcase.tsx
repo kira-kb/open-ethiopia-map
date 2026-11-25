@@ -11,10 +11,28 @@ import {
   Landmark,
 } from "@/lib/api-config";
 
-// In-memory raster style spec to ensure MapLibre works reliably offline & standalone
-function getMapStyleSpec(styleKey: string = "dark", currentLang: string = "en"): string {
+// Subtle green route line: visible against the dark basemap without overpowering it.
+function getRouteLineColors() {
+  return { glow: "#15803d", core: "#22c55e" };
+}
+
+function readShowMainRoadsParam(): boolean {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return ["showMainRoads", "mainRoads", "roadColors"].some(
+    (key) => (params.get(key) || "").toLowerCase() === "true",
+  );
+}
+
+// Uniform roads are the default; colored main roads are opt-in via the style URL.
+function getMapStyleSpec(
+  styleKey: string = "dark",
+  currentLang: string = "en",
+  showMainRoads: boolean = false,
+): string {
   const apiUrl = getEffectiveApiUrl();
-  return `${apiUrl}/api/v1/map/styles/${styleKey}.json?lang=${currentLang}`;
+  const suffix = showMainRoads ? "&showMainRoads=true" : "";
+  return `${apiUrl}/api/v1/map/styles/${styleKey}.json?lang=${currentLang}${suffix}`;
 }
 
 export function MapShowcase() {
@@ -27,6 +45,8 @@ export function MapShowcase() {
   // Language state: "en" | "am"
   const [lang, setLang] = useState<"en" | "am">("en");
   const [currentStyle, setCurrentStyle] = useState<string>("dark");
+  const [showMainRoads, setShowMainRoads] = useState(false);
+  const showMainRoadsRef = useRef(false);
   const [profile, setProfile] = useState<"driving" | "bajaj" | "walking" | "cycling">("driving");
   const [is3D, setIs3D] = useState(false);
   const [activeRouteId, setActiveRouteId] = useState<string>("route-airport");
@@ -158,6 +178,13 @@ export function MapShowcase() {
     };
   }, [profile, customDest, customOrigin, lang]);
 
+  // Read road-color preference from the page URL before the map initializes.
+  useEffect(() => {
+    const next = readShowMainRoadsParam();
+    showMainRoadsRef.current = next;
+    setShowMainRoads(next);
+  }, []);
+
   // Initialize MapLibre in browser
   useEffect(() => {
     let isMounted = true;
@@ -170,12 +197,15 @@ export function MapShowcase() {
 
       const map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: getMapStyleSpec(currentStyle, lang),
+        style: getMapStyleSpec(currentStyle, lang, showMainRoadsRef.current),
         center: [38.7612, 9.0105], // Addis Ababa [lng, lat]
         zoom: 12.2,
         pitch: 0,
+        attributionControl: false,
       });
 
+      // Show only the style's own attribution (Open Ethiopia Map), not MapLibre's default link.
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
       map.addControl(new maplibregl.FullscreenControl(), "top-right");
 
@@ -373,21 +403,22 @@ export function MapShowcase() {
           source: "active-route-src",
           layout: { "line-join": "round", "line-cap": "round" },
           paint: {
-            "line-color": routeProfile === "bajaj" ? "#f59e0b" : "#0284c7",
-            "line-width": 9,
-            "line-opacity": 0.45,
+            "line-color": getRouteLineColors().glow,
+            "line-width": 8,
+            "line-opacity": 0.12,
           },
         });
 
-        // Neon core line
+        // Subtle core line
         map.addLayer({
           id: "active-route-core",
           type: "line",
           source: "active-route-src",
           layout: { "line-join": "round", "line-cap": "round" },
           paint: {
-            "line-color": routeProfile === "bajaj" ? "#fbbf24" : "#38bdf8",
-            "line-width": 4,
+            "line-color": getRouteLineColors().core,
+            "line-width": 3,
+            "line-opacity": 0.38,
           },
         });
       }
@@ -462,42 +493,66 @@ export function MapShowcase() {
     }
   }
 
-  // Switch Map Style
-  function handleStyleChange(style: string) {
-    if (!mapRef.current) return;
-    setCurrentStyle(style);
+  // Apply a style while preserving the active route overlay.
+  function applyMapStyle(style: string, nextLang: string, nextShowMainRoads: boolean) {
+    const map = mapRef.current;
+    if (!map) return;
 
-    const existingData = mapRef.current.getSource("active-route-src")?._data;
-    mapRef.current.setStyle(getMapStyleSpec(style, lang));
+    const existingData = map.getSource("active-route-src")?._data;
+    showMainRoadsRef.current = nextShowMainRoads;
+    map.setStyle(getMapStyleSpec(style, nextLang, nextShowMainRoads));
 
-    mapRef.current.once("style.load", () => {
-      if (existingData) {
-        if (!mapRef.current.getSource("active-route-src")) {
-          mapRef.current.addSource("active-route-src", { type: "geojson", data: existingData });
-          mapRef.current.addLayer({
-            id: "active-route-glow",
-            type: "line",
-            source: "active-route-src",
-            layout: { "line-join": "round", "line-cap": "round" },
-            paint: {
-              "line-color": profile === "bajaj" ? "#f59e0b" : "#0284c7",
-              "line-width": 9,
-              "line-opacity": 0.45,
-            },
-          });
-          mapRef.current.addLayer({
-            id: "active-route-core",
-            type: "line",
-            source: "active-route-src",
-            layout: { "line-join": "round", "line-cap": "round" },
-            paint: {
-              "line-color": profile === "bajaj" ? "#fbbf24" : "#38bdf8",
-              "line-width": 4,
-            },
-          });
-        }
+    map.once("style.load", () => {
+      if (existingData && !mapRef.current?.getSource("active-route-src")) {
+        mapRef.current?.addSource("active-route-src", { type: "geojson", data: existingData });
+        mapRef.current?.addLayer({
+          id: "active-route-glow",
+          type: "line",
+          source: "active-route-src",
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": getRouteLineColors().glow,
+            "line-width": 8,
+            "line-opacity": 0.12,
+          },
+        });
+        mapRef.current?.addLayer({
+          id: "active-route-core",
+          type: "line",
+          source: "active-route-src",
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": getRouteLineColors().core,
+            "line-width": 3,
+            "line-opacity": 0.38,
+          },
+        });
       }
     });
+  }
+
+  // Switch Map Style
+  function handleStyleChange(style: string) {
+    setCurrentStyle(style);
+    applyMapStyle(style, lang, showMainRoadsRef.current);
+  }
+
+  // Toggle color-coded major roads and keep the URL shareable.
+  function toggleMainRoads() {
+    const next = !showMainRoadsRef.current;
+    setShowMainRoads(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (next) {
+        url.searchParams.set("showMainRoads", "true");
+      } else {
+        url.searchParams.delete("showMainRoads");
+        url.searchParams.delete("mainRoads");
+        url.searchParams.delete("roadColors");
+      }
+      window.history.replaceState({}, "", url);
+    }
+    applyMapStyle(currentStyle, lang, next);
   }
 
   // Toggle 3D Perspective Pitch
@@ -749,9 +804,7 @@ export function MapShowcase() {
     const nextLang = lang === "en" ? "am" : "en";
     setLang(nextLang);
 
-    if (mapRef.current) {
-      mapRef.current.setStyle(getMapStyleSpec(currentStyle, nextLang));
-    }
+    applyMapStyle(currentStyle, nextLang, showMainRoadsRef.current);
 
     // Re-render active route with new language
     if (customOrigin && customDest) {
@@ -780,7 +833,7 @@ export function MapShowcase() {
     : `curl -X POST "${effectiveApiUrl}/api/v1/map/route?lang=${lang}" \\
   -H "Content-Type: application/json" \\
   -H "X-Lang: ${lang}" \\
-  -d '{ "origin": { "lat": 8.9806, "lng": 38.7578 }, "destination": { "lat": 8.9774, "lng": 38.7993 }, "profile": "driving", "lang": "${lang}", "steps": true }'`;
+  -d '{ "origin": { "lat": 8.9806, "lng": 38.7578 }, "destination": { "lat": 8.9832295, "lng": 38.795694 }, "profile": "driving", "lang": "${lang}", "steps": true }'`;
 
   function copyCurl() {
     navigator.clipboard.writeText(generatedCurl);
@@ -1023,6 +1076,29 @@ export function MapShowcase() {
           >
             <span>{lang === "am" ? "🇪🇹 አማርኛ" : "🇬🇧 English"}</span>
             <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>({lang.toUpperCase()})</span>
+          </button>
+
+          {/* Optional color-coded main roads */}
+          <button
+            onClick={toggleMainRoads}
+            className="btn-mapcn btn-mapcn-xs"
+            style={{
+              background: showMainRoads ? "rgba(56, 189, 248, 0.2)" : "rgba(255, 255, 255, 0.05)",
+              border: showMainRoads ? "1px solid #38bdf8" : "1px solid var(--border)",
+              color: showMainRoads ? "#7dd3fc" : "#ffffff",
+              fontWeight: 600,
+              borderRadius: "var(--radius-full)",
+              padding: "0 0.65rem",
+            }}
+            title="Toggle colored main roads (?showMainRoads=true)"
+          >
+            {showMainRoads
+              ? lang === "am"
+                ? "ዋና መንገዶች: ቀለም"
+                : "Main roads: colors"
+              : lang === "am"
+              ? "ዋና መንገዶች: አንድ ቀለም"
+              : "Main roads: uniform"}
           </button>
 
           {/* Autocomplete Search input */}
