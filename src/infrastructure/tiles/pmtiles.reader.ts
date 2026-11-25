@@ -37,12 +37,33 @@ export class PmTilesReader {
     customPath?: string,
     private readonly logger?: Logger,
   ) {
-    this.filePath = customPath || path.join(process.cwd(), "data", "tiles", "ethiopia.pmtiles");
+    const candidatePaths = [
+      customPath,
+      process.env.MAP_TILES_PATH,
+      "/data/tiles/ethiopia.pmtiles",
+      path.join(process.cwd(), "data", "tiles", "ethiopia.pmtiles"),
+      path.resolve(__dirname, "../../../data/tiles/ethiopia.pmtiles"),
+    ].filter(Boolean) as string[];
+
+    this.filePath = candidatePaths.find((p) => fs.existsSync(p)) || candidatePaths[0];
     this.init();
   }
 
   private init(): void {
     try {
+      if (!fs.existsSync(this.filePath)) {
+        const candidatePaths = [
+          process.env.MAP_TILES_PATH,
+          "/data/tiles/ethiopia.pmtiles",
+          path.join(process.cwd(), "data", "tiles", "ethiopia.pmtiles"),
+          path.resolve(__dirname, "../../../data/tiles/ethiopia.pmtiles"),
+        ].filter(Boolean) as string[];
+        const found = candidatePaths.find((p) => fs.existsSync(p));
+        if (found) {
+          (this as any).filePath = found;
+        }
+      }
+
       if (fs.existsSync(this.filePath)) {
         const source = new NodeFsSource(this.filePath);
         this.pmtilesInstance = new PMTiles(source);
@@ -57,7 +78,7 @@ export class PmTilesReader {
   }
 
   isAvailable(): boolean {
-    if (!this.isLoaded && fs.existsSync(this.filePath)) {
+    if (!this.isLoaded) {
       this.init();
     }
     return this.isLoaded && this.pmtilesInstance !== null;

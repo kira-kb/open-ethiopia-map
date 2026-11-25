@@ -11,3 +11,4 @@ export { TileController } from "./tile.controller";
 export { ScraperController } from "./scraper.controller";
 export { AdminPortalController } from "./admin-portal.controller";
 export { MatrixController } from "./matrix.controller";
+export { DispatchController } from "./dispatch.controller";

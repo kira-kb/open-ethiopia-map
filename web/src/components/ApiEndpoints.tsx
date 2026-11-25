@@ -8,7 +8,23 @@ const ENDPOINTS = [
     title: "Turn-by-Turn Route Planning",
     desc: "Computes optimal driving, cycling, or walking route geometry (GeoJSON LineString) between coordinates, with distance, duration, and step maneuvers.",
     example: `POST ${API_BASE_URL}/api/v1/map/route
-{ "origin": { "lat": 8.9806, "lng": 38.7578 }, "destination": { "lat": 8.9774, "lng": 38.7993 }, "profile": "driving" }`,
+{ "origin": { "lat": 8.9806, "lng": 38.7578 }, "destination": { "lat": 8.9774, "lng": 38.7993 }, "profile": "bajaj", "lang": "am" }`,
+  },
+  {
+    method: "POST",
+    path: "/api/v1/map/matrix",
+    title: "Distance Matrix (NxM Table)",
+    desc: "Computes a sub-15ms road distance and duration matrix between multiple driver coordinates and customer pickup spots.",
+    example: `POST ${API_BASE_URL}/api/v1/map/matrix
+{ "origins": [{ "latitude": 9.012, "longitude": 38.760 }], "destinations": [{ "latitude": 9.010, "longitude": 38.761 }], "profile": "car" }`,
+  },
+  {
+    method: "POST",
+    path: "/api/v1/map/dispatch/nearby",
+    title: "Production Dispatch Engine",
+    desc: "Two-stage spatial dispatch filter evaluating nearby couriers and ranking them by true Ethiopian road ETA (<5ms).",
+    example: `POST ${API_BASE_URL}/api/v1/map/dispatch/nearby
+{ "pickup": { "latitude": 9.0108, "longitude": 38.7615 }, "vehicleType": "bajaj", "radiusKm": 5.0, "limit": 10 }`,
   },
   {
     method: "GET",

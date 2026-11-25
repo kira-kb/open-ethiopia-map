@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProfileSchema } from "./route.dto";
 
 export const TelemetryPingSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -10,7 +11,7 @@ export const TelemetryPingSchema = z.object({
 
 export const DriverTelemetryRequestSchema = z.object({
   driverId: z.string().min(1),
-  profile: z.enum(["driving", "bajaj", "motorcycle", "walking"]).default("driving"),
+  profile: ProfileSchema,
   pings: z.array(TelemetryPingSchema).min(1).max(100),
 });
 

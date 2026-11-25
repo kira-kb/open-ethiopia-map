@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeProfile } from "../../domain/value-objects";
 
 const CoordinateSchema = z.union([
   z.object({
@@ -11,13 +12,26 @@ const CoordinateSchema = z.union([
   }).transform((val) => ({ lat: val.latitude, lng: val.longitude })),
 ]);
 
+export const ProfileSchema = z
+  .string()
+  .transform((val, ctx) => {
+    const normalized = normalizeProfile(val);
+    if (!normalized) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid profile: "${val}". Supported profiles: driving, bajaj, cycling, walking, motorcycle (aliases: car, bike, foot, moto, tuktuk)`,
+      });
+      return z.NEVER;
+    }
+    return normalized as "driving" | "bajaj" | "cycling" | "walking" | "motorcycle";
+  })
+  .default("driving");
+
 export const RouteRequestSchema = z.object({
   origin: CoordinateSchema,
   destination: CoordinateSchema,
   stops: z.array(CoordinateSchema).optional(),
-  profile: z
-    .enum(["driving", "bajaj", "cycling", "walking", "motorcycle"])
-    .default("driving"),
+  profile: ProfileSchema,
   alternatives: z.number().int().min(0).max(3).optional(),
   steps: z.boolean().optional(),
   lang: z.enum(["en", "am"]).default("en"),

@@ -533,6 +533,7 @@ export class AdminPortalController {
         </div>
       </div>
       <div class="header-actions">
+        <a href="/playground" class="btn btn-secondary btn-sm" style="text-decoration:none; color:#38bdf8; border-color: rgba(56,189,248,0.4); display: flex; align-items: center; gap: 6px;">⚡ API Playground</a>
         <div class="user-pill">
           <span class="status-dot"></span>
           <span id="user-display">kirubelbewket@gmail.com</span>
@@ -878,6 +879,419 @@ map.addSource('ethiopia-streets', {<br>
 
     // Initialize
     checkAuth();
+  </script>
+</body>
+</html>`;
+  }
+
+  public servePlaygroundPage(req: Request, res: Response): void {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(this.renderPlaygroundHtml());
+  }
+
+  private renderPlaygroundHtml(): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Ethiopia Map — API Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(22, 28, 45, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --primary-glow: rgba(16, 185, 129, 0.25);
+      --accent: #38bdf8;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --surface: #111827;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-bottom: 20px; border-bottom: 1px solid var(--card-border); margin-bottom: 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .logo-badge {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #38bdf8, #0284c7);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .brand h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand p { font-size: 12px; color: var(--text-muted); }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .key-bar {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255, 255, 255, 0.04); padding: 6px 12px;
+      border-radius: 8px; border: 1px solid var(--card-border);
+    }
+    .key-bar input {
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px; color: #10b981; font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; padding: 5px 10px; width: 280px; outline: none;
+    }
+    .btn {
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s ease; border: 1px solid transparent;
+      display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    }
+    .btn-primary { background: var(--primary); color: #022c22; font-weight: 700; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: transparent; border-color: var(--card-border); color: var(--text); }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.05); }
+
+    /* Scenario Carousel */
+    .scenarios-row {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 20px;
+    }
+    .scenario-btn {
+      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border);
+      color: var(--text-muted); border-radius: 8px; padding: 7px 12px;
+      font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
+    }
+    .scenario-btn.active {
+      background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: #ffffff;
+    }
+
+    /* Main Grid */
+    .playground-grid {
+      display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px;
+    }
+    .panel {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: var(--radius); padding: 20px; backdrop-filter: blur(12px);
+    }
+    .panel-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+    }
+    .path-row {
+      display: flex; gap: 8px; margin-bottom: 14px;
+    }
+    .path-row select {
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15);
+      color: #38bdf8; font-weight: 700; border-radius: 6px; padding: 8px 12px; outline: none;
+    }
+    .path-row input {
+      flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15);
+      color: #ffffff; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      border-radius: 6px; padding: 8px 12px; outline: none;
+    }
+    textarea.code-area {
+      width: 100%; height: 380px; background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+      color: #f3f4f6; font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      padding: 12px; line-height: 1.5; resize: vertical; outline: none; margin-bottom: 14px;
+    }
+    pre.output-area {
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; color: #f3f4f6; font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px; padding: 14px; max-height: 480px; overflow: auto;
+      line-height: 1.5; margin: 0;
+    }
+    .badge {
+      display: inline-block; padding: 3px 8px; border-radius: 9999px;
+      font-size: 11px; font-weight: 700;
+    }
+    .badge-ok { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .badge-err { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .badge-ms { background: rgba(255,255,255,0.08); color: #38bdf8; }
+    .maneuver-item {
+      padding: 6px 10px; background: rgba(0,0,0,0.25); border-radius: 6px;
+      font-size: 13px; display: flex; gap: 8px; margin-bottom: 4px;
+    }
+    .maneuver-item span.num { color: #10b981; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>Open Ethiopia Map — API Playground</h1>
+          <p>Interactive Spatial Request & Benchmark Console</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="key-bar">
+          <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">API Key:</span>
+          <input id="api-key-input" type="text" value="sk_delivery_live_gondar_3b1c559812a4">
+        </div>
+        <a href="/portal" class="btn btn-outline">🔑 Developer Portal</a>
+      </div>
+    </header>
+
+    <!-- Scenarios -->
+    <div class="scenarios-row" id="scenarios-container">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- Playground Form & Output -->
+    <div class="playground-grid">
+      <!-- Left: Request -->
+      <div class="panel">
+        <div class="panel-header">
+          <div style="font-size: 14px; font-weight: 700;">Request Configuration</div>
+          <span id="scenario-hint" style="font-size: 12px; color: var(--text-muted);">Select a preset above</span>
+        </div>
+
+        <div class="path-row">
+          <select id="req-method">
+            <option value="POST">POST</option>
+            <option value="GET">GET</option>
+          </select>
+          <input id="req-path" type="text" value="/api/v1/map/route">
+        </div>
+
+        <textarea id="req-body" class="code-area"></textarea>
+
+        <button id="send-btn" class="btn btn-primary" style="width: 100%; height: 42px; justify-content: center; font-size: 14px;">
+          🚀 Send Request (Execute)
+        </button>
+      </div>
+
+      <!-- Right: Response -->
+      <div class="panel">
+        <div class="panel-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; font-weight: 700;">Live Response</span>
+            <span id="status-badge" class="badge" style="display: none;"></span>
+            <span id="timing-badge" class="badge badge-ms" style="display: none;"></span>
+          </div>
+          <button id="copy-btn" class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;">Copy Output</button>
+        </div>
+
+        <div id="visual-output" style="margin-bottom: 12px; display: none;"></div>
+        <pre id="json-output" class="output-area">Click "Send Request" to compute route on the Ethiopian road network.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SCENARIOS = [
+      {
+        name: "🚕 Addis: Bole → Kazanchis (Car)",
+        method: "POST",
+        path: "/api/v1/map/route",
+        body: {
+          origin: { latitude: 8.9806, longitude: 38.7578 },
+          destination: { latitude: 9.0195, longitude: 38.7710 },
+          profile: "car",
+          lang: "en",
+          steps: true
+        }
+      },
+      {
+        name: "🛺 Gondar: Arada → Kebele 18 (Bajaj)",
+        method: "POST",
+        path: "/api/v1/map/route",
+        body: {
+          origin: { latitude: 12.6078, longitude: 37.4697 },
+          destination: { latitude: 12.6180, longitude: 37.4580 },
+          profile: "bajaj",
+          lang: "en",
+          steps: true
+        }
+      },
+      {
+        name: "🇪🇹 Amharic Navigation (lang: 'am')",
+        method: "POST",
+        path: "/api/v1/map/route",
+        body: {
+          origin: { latitude: 9.0108, longitude: 38.7615 },
+          destination: { latitude: 8.9806, longitude: 38.7578 },
+          profile: "car",
+          lang: "am",
+          steps: true
+        }
+      },
+      {
+        name: "⚡ Distance Matrix (3 Drivers → 1 Pickup)",
+        method: "POST",
+        path: "/api/v1/map/matrix",
+        body: {
+          origins: [
+            { latitude: 9.0120, longitude: 38.7600 },
+            { latitude: 9.0150, longitude: 38.7700 },
+            { latitude: 9.0200, longitude: 38.7800 }
+          ],
+          destinations: [
+            { latitude: 9.0108, longitude: 38.7615 }
+          ],
+          profile: "car"
+        }
+      },
+      {
+        name: "📦 Pack-Man Dispatch (Road ETA Ranking)",
+        method: "POST",
+        path: "/api/v1/map/dispatch/nearby",
+        body: {
+          pickup: { latitude: 9.0108, longitude: 38.7615 },
+          vehicleType: "bajaj",
+          deliveryId: "del_109283",
+          radiusKm: 5,
+          limit: 5,
+          candidates: [
+            { driverId: "drv_01", latitude: 9.0130, longitude: 38.7615, vehicleType: "BAJAJ" },
+            { driverId: "drv_02", latitude: 9.0180, longitude: 38.7615, vehicleType: "BAJAJ" }
+          ]
+        }
+      },
+      {
+        name: "📍 Snap GPS to Road (/match)",
+        method: "POST",
+        path: "/api/v1/map/match",
+        body: {
+          coordinates: [
+            { latitude: 9.0108, longitude: 38.7615, timestamp: 1711200000 },
+            { latitude: 9.0112, longitude: 38.7620, timestamp: 1711200005 }
+          ],
+          profile: "car"
+        }
+      },
+      {
+        name: "🔍 Autocomplete Search",
+        method: "GET",
+        path: "/api/v1/map/autocomplete?q=Bole+Medhanialem&limit=5"
+      }
+    ];
+
+    const scenariosContainer = document.getElementById('scenarios-container');
+    const reqMethod = document.getElementById('req-method');
+    const reqPath = document.getElementById('req-path');
+    const reqBody = document.getElementById('req-body');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const sendBtn = document.getElementById('send-btn');
+    const statusBadge = document.getElementById('status-badge');
+    const timingBadge = document.getElementById('timing-badge');
+    const jsonOutput = document.getElementById('json-output');
+    const visualOutput = document.getElementById('visual-output');
+    const copyBtn = document.getElementById('copy-btn');
+
+    let currentResponseData = null;
+
+    function renderScenarios() {
+      scenariosContainer.innerHTML = '';
+      SCENARIOS.forEach((sc, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'scenario-btn' + (idx === 0 ? ' active' : '');
+        btn.innerText = sc.name;
+        btn.onclick = () => selectScenario(sc, btn);
+        scenariosContainer.appendChild(btn);
+      });
+      selectScenario(SCENARIOS[0], scenariosContainer.children[0]);
+    }
+
+    function selectScenario(sc, btnEl) {
+      document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      reqMethod.value = sc.method;
+      reqPath.value = sc.path;
+      if (sc.body) {
+        reqBody.value = JSON.stringify(sc.body, null, 2);
+        reqBody.style.display = 'block';
+      } else {
+        reqBody.value = '';
+        reqBody.style.display = 'none';
+      }
+    }
+
+    sendBtn.onclick = async () => {
+      sendBtn.disabled = true;
+      sendBtn.innerText = 'Traversing Road Network...';
+      statusBadge.style.display = 'none';
+      timingBadge.style.display = 'none';
+      visualOutput.style.display = 'none';
+      visualOutput.innerHTML = '';
+
+      const start = performance.now();
+      const path = reqPath.value.trim();
+      const method = reqMethod.value;
+      const key = apiKeyInput.value.trim();
+
+      try {
+        const headers = { 'X-API-Key': key };
+        const opts = { method, headers };
+
+        if (method === 'POST' && reqBody.value.trim()) {
+          headers['Content-Type'] = 'application/json';
+          opts.body = reqBody.value.trim();
+        }
+
+        const res = await fetch(path, opts);
+        const elapsed = Math.round(performance.now() - start);
+
+        statusBadge.style.display = 'inline-block';
+        statusBadge.className = 'badge ' + (res.ok ? 'badge-ok' : 'badge-err');
+        statusBadge.innerText = \`\${res.status} \${res.statusText}\`;
+
+        timingBadge.style.display = 'inline-block';
+        timingBadge.innerText = \`⚡ \${elapsed} ms\`;
+
+        const data = await res.json();
+        currentResponseData = data;
+        jsonOutput.innerText = JSON.stringify(data, null, 2);
+
+        // Visual Turn-by-Turn Maneuvers
+        if (data && Array.isArray(data.instructions) && data.instructions.length > 0) {
+          visualOutput.style.display = 'block';
+          visualOutput.innerHTML = \`<div style="font-size: 12px; font-weight:700; color:#10b981; margin-bottom:6px;">📍 TURN-BY-TURN STEPS:</div>\` +
+            data.instructions.slice(0, 4).map((inst, i) => {
+              const txt = typeof inst === 'string' ? inst : inst.text || JSON.stringify(inst);
+              return \`<div class="maneuver-item"><span class="num">\${i+1}.</span> <span>\${txt}</span></div>\`;
+            }).join('');
+        }
+
+        // Visual Dispatch Leaderboard
+        if (data && Array.isArray(data.candidates) && data.candidates.length > 0) {
+          visualOutput.style.display = 'block';
+          visualOutput.innerHTML = \`<div style="font-size: 12px; font-weight:700; color:#38bdf8; margin-bottom:6px;">🏆 RANKED DRIVERS (ROAD ETA):</div>\` +
+            data.candidates.map((c, i) => {
+              return \`<div class="maneuver-item" style="justify-content:space-between;">
+                <div><span class="num">#\${i+1}</span> \${c.driverId} (\${c.vehicleType})</div>
+                <div style="color:#10b981; font-weight:700;">ETA: \${c.etaMinutes}m (\${c.roadDistanceMeters}m)</div>
+              </div>\`;
+            }).join('');
+        }
+
+      } catch (err) {
+        statusBadge.style.display = 'inline-block';
+        statusBadge.className = 'badge badge-err';
+        statusBadge.innerText = 'Network Error';
+        jsonOutput.innerText = JSON.stringify({ error: err.message }, null, 2);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerText = '🚀 Send Request (Execute)';
+      }
+    };
+
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(jsonOutput.innerText);
+      copyBtn.innerText = '✓ Copied';
+      setTimeout(() => copyBtn.innerText = 'Copy Output', 2000);
+    };
+
+    renderScenarios();
   </script>
 </body>
 </html>`;

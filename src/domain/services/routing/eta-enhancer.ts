@@ -27,13 +27,23 @@ export class EtaEnhancer {
     const distanceMeters = route.distance.inMeters();
     let durationSeconds = route.duration.inSeconds();
 
-    // 1. Vehicle-specific Speed Calibration for Bajaj
-    // In Ethiopian cities, practical Bajaj speed is capped at 30 km/h (8.33 m/s)
+    // 1. Vehicle / Mode specific Speed Calibration
     if (profile === RouteProfile.BAJAJ) {
-      const minBajajSeconds = Math.round(distanceMeters / 8.33); // 30 km/h max speed cap
+      // In Ethiopian cities, practical Bajaj speed is capped at 30 km/h (8.33 m/s)
+      const minBajajSeconds = Math.round(distanceMeters / 8.33);
       if (durationSeconds < minBajajSeconds) {
         durationSeconds = minBajajSeconds;
       }
+    } else if (profile === RouteProfile.WALKING) {
+      // Pedestrian average walking pace: 4.5 km/h (1.25 m/s)
+      durationSeconds = Math.max(1, Math.round(distanceMeters / 1.25));
+    } else if (profile === RouteProfile.CYCLING) {
+      // Bicycle average city speed: 15 km/h (4.17 m/s)
+      durationSeconds = Math.max(1, Math.round(distanceMeters / 4.17));
+    } else if (profile === RouteProfile.MOTORCYCLE) {
+      // Motorcycle: agile in dense urban traffic
+      const minMotoSeconds = Math.round(distanceMeters / 11.11); // 40 km/h cap
+      durationSeconds = Math.max(minMotoSeconds, Math.round(durationSeconds * 0.9));
     }
 
     // 2. Road Surface Breakdown & Calibration
@@ -54,9 +64,17 @@ export class EtaEnhancer {
     const unpavedPercent = Math.round((unpavedCount / totalSteps) * 100);
     const asphaltPercent = Math.max(0, 100 - cobblestonePercent - unpavedPercent);
 
-    // If cobblestone or unpaved sections exist, add surface drag factor
-    const surfaceDragFactor = 1.0 + (cobblestonePercent * 0.004) + (unpavedPercent * 0.008);
-    durationSeconds = Math.round(durationSeconds * surfaceDragFactor);
+    // Apply surface drag factor according to mode of transit
+    if (profile === RouteProfile.WALKING) {
+      const walkingSurfaceFactor = 1.0 + (unpavedPercent * 0.002);
+      durationSeconds = Math.round(durationSeconds * walkingSurfaceFactor);
+    } else if (profile === RouteProfile.CYCLING) {
+      const cyclingSurfaceFactor = 1.0 + (cobblestonePercent * 0.003) + (unpavedPercent * 0.006);
+      durationSeconds = Math.round(durationSeconds * cyclingSurfaceFactor);
+    } else {
+      const surfaceDragFactor = 1.0 + (cobblestonePercent * 0.004) + (unpavedPercent * 0.008);
+      durationSeconds = Math.round(durationSeconds * surfaceDragFactor);
+    }
 
     // 3. Dynamic Traffic & Rush-Hour Multiplier
     const { multiplier, zoneName } = getActiveTrafficMultiplier(coords, currentTime);

@@ -40,6 +40,7 @@ export const config = {
       baseUrl: env("OSRM_BASE_URL", "http://localhost:5000"),
       timeoutMs: envInt("OSRM_TIMEOUT_MS", 5000),
       maxRoutePoints: envInt("OSRM_MAX_ROUTE_POINTS", 25),
+      allowPublicFallback: env("OSRM_ALLOW_PUBLIC_FALLBACK", "false") === "true",
     },
     graphhopper: {
       baseUrl: env("GRAPHHOPPER_BASE_URL", "https://graphhopper.com/api/1"),

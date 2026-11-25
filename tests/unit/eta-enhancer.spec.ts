@@ -95,4 +95,20 @@ describe("EtaEnhancer & Rush-Hour Matrix", () => {
     expect(traffic.multiplier).toBeGreaterThanOrEqual(2.0);
     expect(traffic.zoneName).toContain("Gondar Arada Market");
   });
+
+  it("should calibrate pedestrian walking pace to ~4.5 km/h", () => {
+    // 1000m route with generic motor duration
+    const route = createTestRoute(1000, 60, [[38.75, 9.0]]);
+    const enhanced = enhancer.enhance(route, RouteProfile.WALKING);
+    // 1000m / 1.25 m/s = 800 seconds (~13.3 mins)
+    expect(enhanced.route.duration.inSeconds()).toBe(800);
+  });
+
+  it("should calibrate cycling pace to ~15 km/h", () => {
+    // 3000m route
+    const route = createTestRoute(3000, 100, [[38.75, 9.0]]);
+    const enhanced = enhancer.enhance(route, RouteProfile.CYCLING);
+    // 3000m / 4.17 m/s = ~720 seconds (~12 mins)
+    expect(enhanced.route.duration.inSeconds()).toBeCloseTo(720, -1);
+  });
 });

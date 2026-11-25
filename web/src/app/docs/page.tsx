@@ -110,6 +110,21 @@ export default function DocsPage() {
                   </a>
                 </li>
                 <li>
+                  <a href="#api-matrix" className="btn-mapcn btn-mapcn-ghost" style={{ justifyContent: "flex-start", width: "100%", height: "1.85rem", fontSize: "0.825rem", color: "#38bdf8" }}>
+                    Distance Matrix
+                  </a>
+                </li>
+                <li>
+                  <a href="#api-dispatch" className="btn-mapcn btn-mapcn-ghost" style={{ justifyContent: "flex-start", width: "100%", height: "1.85rem", fontSize: "0.825rem", color: "#10b981" }}>
+                    Dispatch Engine
+                  </a>
+                </li>
+                <li>
+                  <a href="#api-match" className="btn-mapcn btn-mapcn-ghost" style={{ justifyContent: "flex-start", width: "100%", height: "1.85rem", fontSize: "0.825rem" }}>
+                    Snap to Roads
+                  </a>
+                </li>
+                <li>
                   <a href="#api-enrichment" className="btn-mapcn btn-mapcn-ghost" style={{ justifyContent: "flex-start", width: "100%", height: "1.85rem", fontSize: "0.825rem" }}>
                     Location Enrichment
                   </a>
@@ -422,6 +437,81 @@ export function BasicMap() {
                 </tbody>
               </table>
             </section>
+
+            {/* API: Distance Matrix */}
+            <section id="api-matrix" className="docs-section">
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#ffffff", marginBottom: "0.75rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+                API: Distance Matrix ($N \times M$ Durations & Distances)
+              </h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                <span className="badge-pill" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", fontWeight: 700 }}>
+                  POST
+                </span>
+                <code>/api/v1/map/matrix</code>
+              </div>
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1rem" }}>
+                Computes driving durations and road distances between multiple courier coordinates and customer pickup spots in a single high-speed call (&lt;15ms).
+              </p>
+              <pre className="code-block-shadcn">{`POST ${API_BASE_URL}/api/v1/map/matrix
+{
+  "origins": [
+    { "latitude": 9.0120, "longitude": 38.7600 },
+    { "latitude": 9.0150, "longitude": 38.7700 }
+  ],
+  "destinations": [
+    { "latitude": 9.0108, "longitude": 38.7615 }
+  ],
+  "profile": "bajaj"
+}`}</pre>
+            </section>
+
+            {/* API: Production Dispatch Nearby */}
+            <section id="api-dispatch" className="docs-section">
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#ffffff", marginBottom: "0.75rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+                API: Production Dispatch Engine (Road ETA Ranking)
+              </h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                <span className="badge-pill" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399", fontWeight: 700 }}>
+                  POST
+                </span>
+                <code>/api/v1/map/dispatch/nearby</code>
+              </div>
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1rem" }}>
+                Dispatches nearby couriers and drivers by true Ethiopian road network duration (accounting for barrier detours, road surface, and slope) rather than naive Euclidean distance.
+              </p>
+              <pre className="code-block-shadcn">{`POST ${API_BASE_URL}/api/v1/map/dispatch/nearby
+{
+  "pickup": { "latitude": 9.0108, "longitude": 38.7615 },
+  "vehicleType": "bajaj",
+  "deliveryId": "del_109283",
+  "radiusKm": 5.0,
+  "limit": 10
+}`}</pre>
+            </section>
+
+            {/* API: Snap-to-Roads */}
+            <section id="api-match" className="docs-section">
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 600, color: "#ffffff", marginBottom: "0.75rem", borderBottom: "1px solid var(--border)", paddingBottom: "0.5rem" }}>
+                API: Snap-to-Roads / GPS Map Matching
+              </h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                <span className="badge-pill" style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", fontWeight: 700 }}>
+                  POST
+                </span>
+                <code>/api/v1/map/match</code>
+              </div>
+              <p style={{ color: "var(--muted-foreground)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1rem" }}>
+                Aligns noisy GPS breadcrumbs recorded from driver mobile apps directly onto OpenStreetMap street centerlines with interpolated rotation bearings.
+              </p>
+              <pre className="code-block-shadcn">{`POST ${API_BASE_URL}/api/v1/map/match
+{
+  "coordinates": [
+    { "latitude": 9.0108, "longitude": 38.7615, "timestamp": 1711200000 },
+    { "latitude": 9.0112, "longitude": 38.7620, "timestamp": 1711200005 }
+  ],
+  "profile": "car"
+}`}</pre>
+            </section>
           </main>
 
           {/* ── Right Table of Contents ─────────────────────────────── */}
@@ -438,6 +528,9 @@ export function BasicMap() {
               <a href="#api-route" style={{ color: "var(--muted-foreground)", textDecoration: "none" }}>Plan Route</a>
               <a href="#api-autocomplete" style={{ color: "var(--muted-foreground)", textDecoration: "none" }}>Autocomplete</a>
               <a href="#api-sessions" style={{ color: "var(--muted-foreground)", textDecoration: "none" }}>Route Sessions</a>
+              <a href="#api-matrix" style={{ color: "#38bdf8", textDecoration: "none" }}>Distance Matrix</a>
+              <a href="#api-dispatch" style={{ color: "#10b981", textDecoration: "none" }}>Dispatch Engine</a>
+              <a href="#api-match" style={{ color: "var(--muted-foreground)", textDecoration: "none" }}>Snap to Roads</a>
             </nav>
           </aside>
         </div>

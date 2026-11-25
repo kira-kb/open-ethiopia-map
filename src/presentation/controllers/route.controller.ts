@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { PlanRouteUseCase } from "../../application/use-cases";
 import { RouteRequestSchema, RouteResponseDto } from "../dto";
 import { errorResponse } from "../dto";
+import { EthiopianTranslator } from "../../domain/services/localization/ethiopian-translator";
 
 export class RouteController {
   constructor(private readonly planRoute: PlanRouteUseCase) {}
@@ -10,6 +11,7 @@ export class RouteController {
     try {
       const parsed = RouteRequestSchema.parse(req.body);
       const start = Date.now();
+      const lang = EthiopianTranslator.resolveLanguage(req);
 
       const result = await this.planRoute.execute({
         origin: parsed.origin,
@@ -18,7 +20,7 @@ export class RouteController {
         profile: parsed.profile,
         alternatives: parsed.alternatives,
         steps: parsed.steps,
-        lang: parsed.lang,
+        lang,
       });
 
       const response: RouteResponseDto = {
@@ -27,8 +29,8 @@ export class RouteController {
           routes: result.routes.map((r) => {
             const distMeters = typeof r.distance?.inMeters === "function" ? r.distance.inMeters() : (typeof r.distance?.value === "number" ? r.distance.value : 0);
             const durSeconds = typeof r.duration?.inSeconds === "function" ? r.duration.inSeconds() : (typeof r.duration?.value === "number" ? r.duration.value : 0);
-            const distText = typeof r.distance?.toText === "function" ? r.distance.toText() : `${Math.round(distMeters)} m`;
-            const durText = typeof r.duration?.toText === "function" ? r.duration.toText() : `${Math.round(durSeconds)} s`;
+            const distText = EthiopianTranslator.formatDistance(distMeters, lang);
+            const durText = EthiopianTranslator.formatDuration(durSeconds, lang);
 
             return {
               id: r.id,
@@ -51,6 +53,8 @@ export class RouteController {
                   instruction: s.instruction,
                   distance: { value: sDist, unit: "m" },
                   duration: { value: sDur, unit: "s" },
+                  distanceText: EthiopianTranslator.formatDistance(sDist, lang),
+                  durationText: EthiopianTranslator.formatDuration(sDur, lang),
                   type: s.type,
                   modifier: s.modifier,
                 };

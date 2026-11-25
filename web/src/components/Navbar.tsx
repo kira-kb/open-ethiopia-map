@@ -124,6 +124,13 @@ export function Navbar() {
               API Reference
             </Link>
             <Link
+              href="/playground"
+              className="btn-mapcn btn-mapcn-ghost"
+              style={{ height: "2rem", padding: "0 0.75rem", fontSize: "0.825rem", color: "#38bdf8", fontWeight: 700 }}
+            >
+              Playground
+            </Link>
+            <Link
               href="/portal"
               className="btn-mapcn btn-mapcn-ghost"
               style={{ height: "2rem", padding: "0 0.75rem", fontSize: "0.825rem", color: "#10b981", fontWeight: 600 }}
@@ -283,12 +290,20 @@ export function Navbar() {
             Interactive Sandbox
           </Link>
           <Link
-            href="/docs#api-reference"
+            href="/playground"
             onClick={() => setMobileMenuOpen(false)}
             className="btn-mapcn btn-mapcn-ghost"
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", color: "#38bdf8", fontWeight: 700 }}
           >
-            API Reference
+            Playground
+          </Link>
+          <Link
+            href="/portal"
+            onClick={() => setMobileMenuOpen(false)}
+            className="btn-mapcn btn-mapcn-ghost"
+            style={{ justifyContent: "flex-start", width: "100%", color: "#10b981", fontWeight: 700 }}
+          >
+            Developer Portal
           </Link>
         </div>
       )}

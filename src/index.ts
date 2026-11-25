@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -33,12 +35,13 @@ import { AutocompleteController } from "./presentation/controllers/autocomplete.
 import { ReverseGeocodeController } from "./presentation/controllers/reverse-geocode.controller";
 import { NearbyController } from "./presentation/controllers/nearby.controller";
 import { HealthController } from "./presentation/controllers/health.controller";
-import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController, ScraperController, AdminPortalController, MatrixController } from "./presentation/controllers";
+import { EnrichmentController, SavedPlacesController, RouteSessionController, LocationIngestController, TileController, ScraperController, AdminPortalController, MatrixController, DispatchController } from "./presentation/controllers";
 import { TelemetryController } from "./presentation/controllers/telemetry.controller";
 import { MapMatchController } from "./presentation/controllers/map-match.controller";
 import { IngestTelemetryUseCase } from "./application/use-cases/ingest-telemetry.use-case";
 import { MapMatchUseCase } from "./application/use-cases/map-match.use-case";
 import { ComputeMatrixUseCase } from "./application/use-cases/compute-matrix.use-case";
+import { DispatchNearbyUseCase } from "./application/use-cases/dispatch-nearby.use-case";
 import { createRouter } from "./presentation/router";
 import { createErrorHandler } from "./presentation/middleware/error-handler";
 import { createRequestLogger } from "./presentation/middleware/request-logger";
@@ -170,6 +173,8 @@ async function main(): Promise<void> {
   const mapMatchController = new MapMatchController(mapMatchUseCase, logger);
   const computeMatrixUseCase = new ComputeMatrixUseCase(logger);
   const matrixController = new MatrixController(computeMatrixUseCase, logger);
+  const dispatchNearbyUseCase = new DispatchNearbyUseCase(computeMatrixUseCase, cache, logger);
+  const dispatchController = new DispatchController(dispatchNearbyUseCase, logger);
 
   // ── API Key & Developer Portal Auth ──────────────────────────
   const apiKeyStore = new ApiKeyStore(undefined, logger);
@@ -195,6 +200,13 @@ async function main(): Promise<void> {
   app.use(express.json({ limit: "10mb" }));
   app.use(createRequestLogger(logger));
 
+  // Serve static web app assets if available (from Next.js export in web/out)
+  const webOutDir = path.resolve(process.cwd(), "web", "out");
+  if (fs.existsSync(webOutDir)) {
+    logger.info(`Mounting static web frontend from ${webOutDir}`);
+    app.use(express.static(webOutDir));
+  }
+
   const router = createRouter(
     routeController,
     autocompleteController,
@@ -210,6 +222,7 @@ async function main(): Promise<void> {
     telemetryController,
     mapMatchController,
     matrixController,
+    dispatchController,
     adminPortalController,
     apiKeyAuthMiddleware,
     adminAuthMiddleware,

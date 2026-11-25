@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { Router, RequestHandler } from "express";
 import { RouteController } from "./controllers/route.controller";
 import { AutocompleteController } from "./controllers/autocomplete.controller";
@@ -14,6 +16,7 @@ import { TelemetryController } from "./controllers/telemetry.controller";
 import { MapMatchController } from "./controllers/map-match.controller";
 import { AdminPortalController } from "./controllers/admin-portal.controller";
 import { MatrixController } from "./controllers/matrix.controller";
+import { DispatchController } from "./controllers/dispatch.controller";
 
 export function createRouter(
   routeController: RouteController,
@@ -30,6 +33,7 @@ export function createRouter(
   telemetryController?: TelemetryController,
   mapMatchController?: MapMatchController,
   matrixController?: MatrixController,
+  dispatchController?: DispatchController,
   adminPortalController?: AdminPortalController,
   apiKeyAuthMiddleware?: RequestHandler,
   adminAuthMiddleware?: RequestHandler,
@@ -38,6 +42,11 @@ export function createRouter(
 
   // ── Open Portal & Public Info Routes ──────────────────────────
   router.get("/", (req, res) => {
+    const webOut = path.resolve(process.cwd(), "web", "out", "index.html");
+    if (req.accepts("html") && fs.existsSync(webOut)) {
+      res.sendFile(webOut);
+      return;
+    }
     res.json({
       name: "Open Ethiopia Map & Routing Platform",
       version: "1.0.0",
@@ -51,6 +60,7 @@ export function createRouter(
         adminLogin: "POST /api/v1/admin/auth/login",
         route: "POST /api/v1/map/route",
         matrix: "POST /api/v1/map/matrix",
+        dispatchNearby: "POST /api/v1/map/dispatch/nearby",
         autocomplete: "GET /api/v1/map/autocomplete?q={query}&limit={limit}",
         reverseGeocode: "GET /api/v1/map/reverse-geocode?lat={latitude}&lng={longitude}",
         nearby: "GET /api/v1/map/nearby?lat={latitude}&lng={longitude}&radius={meters}",
@@ -80,12 +90,49 @@ export function createRouter(
     });
   });
 
+  router.get("/docs", (req, res, next) => {
+    const docsHtml = path.resolve(process.cwd(), "web", "out", "docs.html");
+    if (fs.existsSync(docsHtml)) {
+      res.sendFile(docsHtml);
+      return;
+    }
+    next();
+  });
+
+  router.get("/playground", (req, res, next) => {
+    const playgroundHtml = path.resolve(process.cwd(), "web", "out", "playground.html");
+    if (fs.existsSync(playgroundHtml)) {
+      res.sendFile(playgroundHtml);
+      return;
+    }
+    if (adminPortalController) {
+      adminPortalController.servePlaygroundPage(req, res);
+      return;
+    }
+    next();
+  });
+
   router.get("/health", healthController.check.bind(healthController));
+  router.get("/api/v1/map/health", healthController.check.bind(healthController));
 
   // ── Admin Web Portal & Management APIs ────────────────────────
   if (adminPortalController) {
-    router.get("/portal", adminPortalController.servePortalPage.bind(adminPortalController));
-    router.get("/portal/login", adminPortalController.servePortalPage.bind(adminPortalController));
+    router.get("/portal", (req, res) => {
+      const portalHtml = path.resolve(process.cwd(), "web", "out", "portal.html");
+      if (fs.existsSync(portalHtml)) {
+        res.sendFile(portalHtml);
+        return;
+      }
+      adminPortalController.servePortalPage(req, res);
+    });
+    router.get("/portal/login", (req, res) => {
+      const portalHtml = path.resolve(process.cwd(), "web", "out", "portal.html");
+      if (fs.existsSync(portalHtml)) {
+        res.sendFile(portalHtml);
+        return;
+      }
+      adminPortalController.servePortalPage(req, res);
+    });
     router.post("/api/v1/admin/auth/login", adminPortalController.login.bind(adminPortalController));
 
     const adminGuard: RequestHandler[] = adminAuthMiddleware ? [adminAuthMiddleware] : [];
@@ -160,6 +207,10 @@ export function createRouter(
 
   if (matrixController) {
     router.post("/api/v1/map/matrix", matrixController.compute.bind(matrixController));
+  }
+
+  if (dispatchController) {
+    router.post("/api/v1/map/dispatch/nearby", dispatchController.findNearby.bind(dispatchController));
   }
 
   return router;

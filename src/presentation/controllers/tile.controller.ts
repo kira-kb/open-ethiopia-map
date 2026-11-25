@@ -3,6 +3,7 @@ import path from "path";
 import { Request, Response, NextFunction } from "express";
 import { Logger } from "../../domain/interfaces";
 import { PmTilesReader } from "../../infrastructure/tiles/pmtiles.reader";
+import { generateVectorStyle } from "./vector-styles";
 
 const TILE_SERVERS: Record<string, (z: string, x: string, y: string) => string> = {
   dark: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${z}/${y}/${x}`,
@@ -11,6 +12,7 @@ const TILE_SERVERS: Record<string, (z: string, x: string, y: string) => string> 
   street: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
   osm: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
   standard: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+  satellite: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
   topo: (z, x, y) => `https://a.tile.opentopomap.org/${z}/${x}/${y}.png`,
 };
 
@@ -150,10 +152,23 @@ export class TileController {
     try {
       const rawStyle = String(req.params.style || "dark").replace(/\.json$/i, "").toLowerCase();
       const style = TILE_SERVERS[rawStyle] ? rawStyle : "dark";
+      const lang = (String(req.query?.lang || "default").toLowerCase() as "en" | "am" | "default");
 
       const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
       const host = req.get("host") || "localhost:8084";
       const baseUrl = `${protocol}://${host}`;
+
+      const hasVectorTiles = this.pmTilesReader.isAvailable();
+
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+
+      if (hasVectorTiles) {
+        const vectorStyle = generateVectorStyle({ baseUrl, style, lang });
+        res.json(vectorStyle);
+        return;
+      }
 
       const backgroundColors: Record<string, string> = {
         dark: "#0f172a",
@@ -163,58 +178,40 @@ export class TileController {
         standard: "#e5e7eb",
       };
 
-      const hasVectorTiles = this.pmTilesReader.isAvailable();
-
-      const sourcesConfig = hasVectorTiles
-        ? {
-            "ethiopia-vector-tiles": {
-              type: "vector",
-              tiles: [`${baseUrl}/api/v1/map/tiles/vector/{z}/{x}/{y}.mvt`],
-              minzoom: 0,
-              maxzoom: 15,
-              attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
-            },
-          }
-        : {
-            "ethiopia-raster-tiles": {
-              type: "raster",
-              tiles: [`${baseUrl}/api/v1/map/tiles/${style}/{z}/{x}/{y}.png`],
-              tileSize: 256,
-              attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
-              minzoom: 0,
-              maxzoom: 19,
-            },
-          };
-
-      const baseLayer = hasVectorTiles
-        ? {
-            id: "background",
-            type: "background",
-            paint: { "background-color": backgroundColors[style] || "#0f172a" },
-          }
-        : {
-            id: "ethiopia-base-tiles",
-            type: "raster",
-            source: "ethiopia-raster-tiles",
-            minzoom: 0,
-            maxzoom: 19,
-          };
-
       const styleSpec = {
         version: 8,
         name: `Open Ethiopia Map - ${style.charAt(0).toUpperCase() + style.slice(1)}`,
         metadata: {
           "openethiopiamap:version": "1.0.0",
           "openethiopiamap:style": style,
-          "openethiopiamap:source-type": hasVectorTiles ? "vector" : "raster",
+          "openethiopiamap:source-type": "raster",
         },
-        sources: sourcesConfig,
-        layers: [baseLayer],
+        sources: {
+          "ethiopia-raster-tiles": {
+            type: "raster",
+            tiles: [`${baseUrl}/api/v1/map/tiles/${style}/{z}/{x}/{y}.png`],
+            tileSize: 256,
+            attribution: "© Open Ethiopia Map | OpenStreetMap contributors",
+            minzoom: 0,
+            maxzoom: 19,
+          },
+        },
+        layers: [
+          {
+            id: "background",
+            type: "background",
+            paint: { "background-color": backgroundColors[style] || "#0f172a" },
+          },
+          {
+            id: "ethiopia-base-tiles",
+            type: "raster",
+            source: "ethiopia-raster-tiles",
+            minzoom: 0,
+            maxzoom: 19,
+          },
+        ],
       };
 
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
-      res.setHeader("Access-Control-Allow-Origin", "*");
       res.json(styleSpec);
     } catch (err) {
       next(err);

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { CreateRouteSessionUseCase, GetRouteSessionUseCase, ReplanRouteSessionUseCase, GetRouteHistoryUseCase, CloseRouteSessionUseCase, CheckDeviationUseCase } from "../../application/use-cases";
 import { CreateRouteSessionSchema, ReplanRouteSessionSchema } from "../dto/route-session.dto";
 import { errorResponse } from "../dto";
+import { EthiopianTranslator, SupportedLanguage } from "../../domain/services/localization/ethiopian-translator";
 
 export class RouteSessionController {
   constructor(
@@ -17,6 +18,7 @@ export class RouteSessionController {
     try {
       const parsed = CreateRouteSessionSchema.parse(req.body);
       const start = Date.now();
+      const lang = EthiopianTranslator.resolveLanguage(req);
 
       const { session, cached } = await this.createUseCase.execute({
         deliveryId: parsed.deliveryId,
@@ -28,7 +30,7 @@ export class RouteSessionController {
 
       res.status(201).json({
         success: true,
-        data: { session: this.sessionToDto(session) },
+        data: { session: this.sessionToDto(session, lang) },
         meta: { cached, processingTime: Date.now() - start },
       });
     } catch (err: unknown) {
@@ -43,6 +45,7 @@ export class RouteSessionController {
   async get(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const sessionId = req.params.id as string;
+      const lang = EthiopianTranslator.resolveLanguage(req);
       const session = await this.getUseCase.execute(sessionId);
       if (!session) {
         res.status(404).json(errorResponse("NOT_FOUND", "Route session not found"));
@@ -50,7 +53,7 @@ export class RouteSessionController {
       }
       res.json({
         success: true,
-        data: { session: this.sessionToDto(session) },
+        data: { session: this.sessionToDto(session, lang) },
       });
     } catch (err) {
       next(err);
@@ -60,6 +63,7 @@ export class RouteSessionController {
   async getByDelivery(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const deliveryId = req.params.deliveryId as string;
+      const lang = EthiopianTranslator.resolveLanguage(req);
       const session = await this.getUseCase.executeByDeliveryId(deliveryId);
       if (!session) {
         res.status(404).json(errorResponse("NOT_FOUND", "Route session not found for delivery"));
@@ -67,7 +71,7 @@ export class RouteSessionController {
       }
       res.json({
         success: true,
-        data: { session: this.sessionToDto(session) },
+        data: { session: this.sessionToDto(session, lang) },
       });
     } catch (err) {
       next(err);
@@ -78,6 +82,7 @@ export class RouteSessionController {
     try {
       const parsed = ReplanRouteSessionSchema.parse(req.body);
       const start = Date.now();
+      const lang = EthiopianTranslator.resolveLanguage(req);
 
       const { session, revision } = await this.replanUseCase.execute({
         sessionId: req.params.id as string,
@@ -91,8 +96,8 @@ export class RouteSessionController {
       res.json({
         success: true,
         data: {
-          session: this.sessionToDto(session),
-          revision: this.revisionToDto(revision),
+          session: this.sessionToDto(session, lang),
+          revision: this.revisionToDto(revision, lang),
         },
         meta: { processingTime: Date.now() - start },
       });
@@ -111,10 +116,11 @@ export class RouteSessionController {
 
   async getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const lang = EthiopianTranslator.resolveLanguage(req);
       const revisions = await this.historyUseCase.execute(req.params.id as string);
       res.json({
         success: true,
-        data: { revisions: revisions.map((r) => this.revisionToDto(r)) },
+        data: { revisions: revisions.map((r) => this.revisionToDto(r, lang)) },
       });
     } catch (err) {
       next(err);
@@ -141,18 +147,38 @@ export class RouteSessionController {
         res.status(400).json({ success: false, message: "latitude and longitude (or lat and lng) required" });
         return;
       }
+      const lang = EthiopianTranslator.resolveLanguage(req);
       const result = await this.deviationUseCase.execute({
         sessionId: req.params.id as string,
         latitude: Number(latitude),
         longitude: Number(longitude),
       });
-      res.json({ success: true, data: result });
+
+      const message = lang === "am"
+        ? (result.status === "on_route"
+            ? "አሽከርካሪው በትክክለኛው መንገድ ላይ ነው"
+            : result.status === "off_route"
+            ? `አሽከርካሪው ከተመደበው መንገድ ${EthiopianTranslator.formatDistance(result.deviationMeters, "am")} ወጥቷል`
+            : "የመንገድ ክፍለ ጊዜ አልተገኘም")
+        : (result.status === "on_route"
+            ? "Driver is on route"
+            : result.status === "off_route"
+            ? `Driver is off route by ${EthiopianTranslator.formatDistance(result.deviationMeters, "en")}`
+            : "Route session not found");
+
+      res.json({
+        success: true,
+        data: {
+          ...result,
+          message,
+        },
+      });
     } catch (err) {
       next(err);
     }
   }
 
-  private sessionToDto(session: any): any {
+  private sessionToDto(session: any, lang: SupportedLanguage = "en"): any {
     return {
       id: session.id,
       deliveryId: session.deliveryId,
@@ -162,6 +188,8 @@ export class RouteSessionController {
       destination: { lat: session.destination.latitude, lng: session.destination.longitude },
       distanceMeters: session.distanceMeters,
       durationSeconds: session.durationSeconds,
+      distanceText: EthiopianTranslator.formatDistance(session.distanceMeters, lang),
+      durationText: EthiopianTranslator.formatDuration(session.durationSeconds, lang),
       geometry: session.geometry,
       instructions: session.instructions,
       currentRevision: session.currentRevision,
@@ -171,7 +199,7 @@ export class RouteSessionController {
     };
   }
 
-  private revisionToDto(revision: any): any {
+  private revisionToDto(revision: any, lang: SupportedLanguage = "en"): any {
     return {
       id: revision.id,
       version: revision.version,
@@ -180,6 +208,8 @@ export class RouteSessionController {
       geometry: revision.geometry,
       distanceMeters: revision.distanceMeters,
       durationSeconds: revision.durationSeconds,
+      distanceText: EthiopianTranslator.formatDistance(revision.distanceMeters, lang),
+      durationText: EthiopianTranslator.formatDuration(revision.durationSeconds, lang),
       instructions: revision.instructions,
       reason: revision.reason,
       cacheHit: revision.cacheHit,

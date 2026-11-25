@@ -74,43 +74,142 @@ cp .env.example .env
 docker compose up -d --build
 
 # 4. Check service health
-curl http://localhost:7860/api/v1/packman/map/health
+curl http://localhost:7860/health
+# Or canonical path:
+curl http://localhost:7860/api/v1/map/health
 ```
 
 ---
 
 ## 📡 API Reference & Endpoints
 
-Base URL: `http://localhost:7860/api/v1/packman/map`
+Base URL: `http://localhost:8084` (or configured `PORT`)
+Authentication: Header `X-API-Key: <key>` or Query `?key=<key>` (Manage keys via Developer Portal at `/portal`).
 
-### 1. Calculate Route & Distance
+### 1. Calculate Route & Turn-by-Turn Navigation
 ```http
-GET /route?originLat=8.9806&originLng=38.7578&destLat=9.0108&destLng=38.7636
+POST /api/v1/map/route
+Content-Type: application/json
+X-API-Key: <YOUR_SERVICE_KEY>
+
+{
+  "origin": { "latitude": 9.0108, "longitude": 38.7615 },
+  "destination": { "latitude": 8.9806, "longitude": 38.7578 },
+  "profile": "driving",   // "driving" | "bajaj" | "cycling" | "walking" | "motorcycle" (aliases: "car", "bike", "foot")
+  "lang": "am",           // "en" | "am" (Amharic turn-by-turn maneuvers)
+  "steps": true
+}
 ```
 **Response:**
 ```json
 {
-  "distanceKm": 4.25,
-  "durationMinutes": 11.4,
-  "polyline": "_p~iF~ps|U_ulLnnqC_mqN...",
-  "status": "OK"
+  "distance": 4250,
+  "duration": 684,
+  "geometry": "GeoJSON line or encoded polyline",
+  "instructions": [
+    "በደብረ ዘይት መንገድ ቀጥታ ይቀጥሉ (1.2 km)",
+    "ወደ ጎተራ ማዞሪያ በቀኝ ታጠፍ",
+    "መድረሻዎ ደርሰዋል"
+  ],
+  "profile": "driving"
 }
 ```
 
-### 2. Place Autocomplete
+### 2. Distance Matrix API ($N \times M$ Durations & Distances)
 ```http
-GET /autocomplete?query=Bole&limit=5
+POST /api/v1/map/matrix
+Content-Type: application/json
+X-API-Key: <YOUR_SERVICE_KEY>
+
+{
+  "origins": [
+    { "latitude": 9.0120, "longitude": 38.7600 },
+    { "latitude": 9.0150, "longitude": 38.7700 }
+  ],
+  "destinations": [
+    { "latitude": 9.0108, "longitude": 38.7615 }
+  ],
+  "profile": "bajaj"
+}
+```
+**Response:**
+```json
+{
+  "durations": [[180], [420]],
+  "distances": [[1200], [2800]],
+  "profile": "bajaj"
+}
 ```
 
-### 3. Reverse Geocode (GPS $\rightarrow$ Address)
+### 3. Production Dispatch API (Two-Stage Driver Filter)
 ```http
-GET /reverse?lat=9.0108&lng=38.7636
+POST /api/v1/map/dispatch/nearby
+Content-Type: application/json
+X-API-Key: <YOUR_SERVICE_KEY>
+
+{
+  "pickup": { "latitude": 9.0108, "longitude": 38.7615 },
+  "vehicleType": "bajaj",
+  "deliveryId": "del_109283",
+  "radiusKm": 5,
+  "limit": 10
+}
+```
+*Ranks candidate drivers by true Ethiopian road network duration (accounting for road surfaces, barriers, and rush-hour traffic) in $< 5\text{ ms}$.*
+
+### 4. Map Matching / Snap-to-Roads API
+```http
+POST /api/v1/map/match
+Content-Type: application/json
+X-API-Key: <YOUR_SERVICE_KEY>
+
+{
+  "coordinates": [
+    { "latitude": 9.0108, "longitude": 38.7615, "timestamp": 1711200000 },
+    { "latitude": 9.0112, "longitude": 38.7620, "timestamp": 1711200005 }
+  ],
+  "profile": "driving"
+}
 ```
 
-### 4. Nearby Places & Landmarks
+### 5. Dynamic Fleet Speed Telemetry
 ```http
-GET /nearby?lat=9.0108&lng=38.7636&radius=1000
+POST /api/v1/map/traffic/telemetry
+Content-Type: application/json
+X-API-Key: <YOUR_SERVICE_KEY>
+
+{
+  "driverId": "drv_4821",
+  "latitude": 9.0108,
+  "longitude": 38.7615,
+  "speedKmh": 18.5,
+  "heading": 92.0
+}
 ```
+
+### 6. Vector Tile Server (PMTiles)
+```http
+GET /api/v1/map/tiles/vector/{z}/{x}/{y}.pbf?key=<PUBLIC_KEY>
+GET /api/v1/map/tiles/style.json?key=<PUBLIC_KEY>
+```
+
+### 7. Place Autocomplete & Reverse Geocoding
+```http
+GET /api/v1/map/autocomplete?q=Bole+Medhanialem&limit=5&key=<KEY>
+GET /api/v1/map/reverse-geocode?lat=9.0108&lng=38.7615&key=<KEY>
+```
+
+---
+
+## 🔐 Developer Portal & API Key Management
+
+Access the embedded Web Developer Portal at:
+`http://localhost:8084/portal`
+
+- **Login Credentials**: `kirubelbewket@gmail.com` / `Pass@123`
+- Create, inspect, roll, and revoke API keys (`service` vs `public`).
+- Public keys are restricted to vector tile delivery and place search.
+- Service keys allow high-frequency routing, dispatching, and telemetry ingestion.
 
 ---
 

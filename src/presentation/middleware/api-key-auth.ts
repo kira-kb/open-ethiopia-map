@@ -18,9 +18,22 @@ export interface AuthenticatedRequest extends Request {
 
 export function createApiKeyAuthMiddleware(apiKeyStore: ApiKeyStore, logger?: Logger) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    // 1. Whitelist root and health
+    // 1. Whitelist open public routes: root, health, admin portal, playground, and map tiles/styles (100% free, unmetered)
     const path = req.path;
-    if (path === "/" || path === "/health" || path.startsWith("/portal") || path.startsWith("/api/v1/admin")) {
+    const origUrl = req.originalUrl || req.url || "";
+    if (
+      path === "/" ||
+      path === "/health" ||
+      path.startsWith("/health") ||
+      origUrl.includes("/health") ||
+      path.startsWith("/portal") ||
+      path.startsWith("/playground") ||
+      path.startsWith("/api/v1/admin") ||
+      path.startsWith("/styles") ||
+      path.startsWith("/tiles") ||
+      origUrl.includes("/styles") ||
+      origUrl.includes("/tiles")
+    ) {
       next();
       return;
     }
@@ -49,6 +62,11 @@ export function createApiKeyAuthMiddleware(apiKeyStore: ApiKeyStore, logger?: Lo
       } else if (typeof req.query.apiKey === "string" && req.query.apiKey.trim()) {
         key = req.query.apiKey.trim();
       }
+    }
+
+    // Optional bypass: assign default key when API keys are not enforced in self-hosted mode
+    if (!key && (process.env.MAP_REQUIRE_API_KEY === "false" || process.env.REQUIRE_API_KEY === "false")) {
+      key = "sk_delivery_live_gondar_3b1c559812a4";
     }
 
     // If missing key

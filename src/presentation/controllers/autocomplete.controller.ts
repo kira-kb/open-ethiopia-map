@@ -3,6 +3,7 @@ import { SearchPlacesUseCase } from "../../application/use-cases";
 import { AutocompleteQuerySchema, AutocompleteResponseDto } from "../dto";
 import { errorResponse } from "../dto";
 import { SearchResult } from "../../domain/entities";
+import { EthiopianTranslator } from "../../domain/services/localization/ethiopian-translator";
 
 // ── Presentation Mapper ─────────────────────────────────────────
 // Maps domain SearchResult to DTO with UI decoration (badge, icon)
@@ -20,12 +21,27 @@ const SOURCE_BADGE_MAP: Record<string, BadgeConfig> = {
   PROVIDER: { badge: "Map", icon: "map-pin" },
 };
 
-function mapBadge(result: SearchResult): BadgeConfig {
-  const sourceBadge = SOURCE_BADGE_MAP[result.source];
-  if (sourceBadge) return sourceBadge;
+const AMHARIC_BADGE_MAP: Record<string, string> = {
+  "Saved": "የተቀመጠ",
+  "PackMan Verified": "የተረጋገጠ",
+  "Recommended": "የተመከረ",
+  "Map": "ካርታ",
+};
 
-  // Fallback: use source name as badge
-  return { badge: result.source?.replace(/_/g, " ") || "Map", icon: "map-pin" };
+function mapBadge(result: SearchResult, lang: "en" | "am" = "en"): BadgeConfig {
+  const sourceBadge = SOURCE_BADGE_MAP[result.source] || {
+    badge: result.source?.replace(/_/g, " ") || "Map",
+    icon: "map-pin",
+  };
+
+  if (lang === "am") {
+    return {
+      badge: AMHARIC_BADGE_MAP[sourceBadge.badge] || sourceBadge.badge,
+      icon: sourceBadge.icon,
+    };
+  }
+
+  return sourceBadge;
 }
 
 export class AutocompleteController {
@@ -35,6 +51,7 @@ export class AutocompleteController {
     try {
       const parsed = AutocompleteQuerySchema.parse(req.query);
       const start = Date.now();
+      const lang = EthiopianTranslator.resolveLanguage(req);
 
       const result = await this.searchPlaces.execute({
         query: parsed.q,
@@ -50,17 +67,19 @@ export class AutocompleteController {
         success: true,
         data: {
           places: result.places.map((r) => {
-            const { badge, icon } = mapBadge(r);
+            const { badge, icon } = mapBadge(r, lang);
+            const localizedName = lang === "am" ? EthiopianTranslator.translatePlaceName(r.title, "am") : r.title;
+            const localizedCity = lang === "am" ? EthiopianTranslator.translateCity(r.city, "am") : r.city;
             return {
               id: r.placeId || r.id,
-              name: r.title,
+              name: localizedName,
               address: r.subtitle,
               latitude: r.latitude,
               longitude: r.longitude,
-              city: r.city,
+              city: localizedCity,
               source: r.source,
               confidence: r.score,
-              recommendedName: r.title,
+              recommendedName: localizedName,
               locationType: r.locationType,
               locationTypeOptions: r.locationTypeOptions,
               extraFields: r.extraFields,

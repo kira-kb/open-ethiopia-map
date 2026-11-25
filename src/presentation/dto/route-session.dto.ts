@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProfileSchema } from "./route.dto";
 
 const CoordinateSchema = z.union([
   z.object({
@@ -16,14 +17,14 @@ export const CreateRouteSessionSchema = z.object({
   origin: CoordinateSchema,
   destination: CoordinateSchema,
   stops: z.array(CoordinateSchema).optional(),
-  profile: z.enum(["driving", "bajaj", "cycling", "walking", "motorcycle"]).default("driving"),
+  profile: ProfileSchema,
 });
 
 export const ReplanRouteSessionSchema = z.object({
   origin: CoordinateSchema.optional(),
   destination: CoordinateSchema.optional(),
   stops: z.array(CoordinateSchema).optional(),
-  profile: z.enum(["driving", "bajaj", "cycling", "walking", "motorcycle"]).optional(),
+  profile: ProfileSchema.optional(),
   reason: z.enum(["DRIVER_REQUEST", "TRAFFIC", "ROAD_CLOSED", "PROVIDER_FAILOVER", "SYSTEM"]).default("DRIVER_REQUEST"),
 });
 

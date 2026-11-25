@@ -179,35 +179,36 @@ export class RouteProviderRegistry implements IRouteProvider {
     const results = new Map<string, boolean>();
     for (const [name] of this.providers) {
       if (name === "osrm") {
-        const candidateUrls = [
-          config.routeProvider.osrm.baseUrl,
-          "https://router.project-osrm.org",
-        ].filter(Boolean);
-
+        const baseUrl = config.routeProvider.osrm.baseUrl;
         let osrmHealthy = false;
-        for (const baseUrl of candidateUrls) {
-          try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 2000);
-            const res = await fetch(
-              `${baseUrl}/route/v1/driving/38.7,9.0;38.8,9.1?overview=false`,
-              { signal: controller.signal },
-            );
-            clearTimeout(timeout);
-            if (res.ok || res.status === 400) {
-              osrmHealthy = true;
-              break;
-            }
-          } catch {
-            // Try next candidate
+
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2000);
+          const res = await fetch(
+            `${baseUrl}/route/v1/driving/38.7,9.0;38.8,9.1?overview=false`,
+            { signal: controller.signal },
+          );
+          clearTimeout(timeout);
+          if (res.ok || res.status === 400) {
+            osrmHealthy = true;
           }
+        } catch (probeErr) {
+          this.logger.warn(`Local OSRM health check probe failed on ${baseUrl}: ${(probeErr as Error).message}`);
+          osrmHealthy = false;
         }
+
         results.set("osrm", osrmHealthy);
         const state = this.health.get("osrm");
         if (state) {
           state.healthy = osrmHealthy;
           state.lastCheckedAt = new Date();
-          if (osrmHealthy) state.consecutiveFailures = 0;
+          if (osrmHealthy) {
+            state.consecutiveFailures = 0;
+          } else {
+            state.consecutiveFailures = (state.consecutiveFailures || 0) + 1;
+            state.lastFailureAt = new Date();
+          }
         }
       } else {
         const state = this.health.get(name);

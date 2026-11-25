@@ -139,4 +139,8 @@ export class RedisCache implements ICache {
     await this.set(key, value, ttlSeconds);
     return value;
   }
+
+  public getRawClient(): RedisClient | null {
+    return this.connected ? this.client : null;
+  }
 }

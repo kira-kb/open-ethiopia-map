@@ -178,13 +178,15 @@ end
 function process_turn(profile, turn)
   turn.duration = 0.0
 
-  if turn.direction_modifier == direction_modifier.u_turn then
+  if turn.is_u_turn then
     turn.duration = turn.duration + profile.properties.u_turn_penalty
   end
 
   if turn.has_traffic_light then
     turn.duration = turn.duration + profile.properties.traffic_signal_penalty
   end
+
+  turn.weight = turn.duration
 end
 
 return {

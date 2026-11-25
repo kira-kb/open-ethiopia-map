@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ProfileSchema } from "./route.dto";
 
 export const MapMatchRequestSchema = z.object({
   coordinates: z
@@ -6,7 +7,7 @@ export const MapMatchRequestSchema = z.object({
     .min(2)
     .max(100), // [[lng, lat], ...] format for MapLibre/GeoJSON
   timestamps: z.array(z.number().int()).optional(),
-  profile: z.enum(["driving", "bajaj", "motorcycle", "walking"]).default("driving"),
+  profile: ProfileSchema,
 });
 
 export type MapMatchRequestDto = z.infer<typeof MapMatchRequestSchema>;

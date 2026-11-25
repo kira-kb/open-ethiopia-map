@@ -1,7 +1,7 @@
 name: open-ethiopia-map
 
 services:
-  # Standalone Open Ethiopia Map & Routing Engine (All-in-One)
+  # Standalone Open Ethiopia Map & Routing Engine (All-in-One: OSRM C++ + Node.js Map Service + Web App)
   map-server:
     build:
       context: .
@@ -10,6 +10,7 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-7860}:7860"
+      - "${WEB_PORT:-3000}:7860"
     environment:
       NODE_ENV: production
       PORT: 7860
@@ -21,15 +22,17 @@ services:
       MAP_CACHE_TTL_AUTOCOMPLETE: 1800
       MAP_CACHE_TTL_REVERSE: 86400
       MAP_CACHE_TTL_NEARBY: 900
+      MAP_REQUIRE_API_KEY: ${MAP_REQUIRE_API_KEY:-false}
     volumes:
       - osrm_data:/data
+      - ./data/tiles:/data/tiles
     depends_on:
       map-postgres:
         condition: service_healthy
       map-redis:
         condition: service_healthy
 
-  # Optional local PostgreSQL (or replace MAP_DATABASE_URL with free cloud Supabase / Neon)
+  # Local PostgreSQL for persistent location intelligence & saved places
   map-postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -45,7 +48,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Optional local Redis for route & autocomplete acceleration
+  # Local Redis for route computation & autocomplete acceleration
   map-redis:
     image: redis:alpine
     restart: unless-stopped

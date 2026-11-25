@@ -53,7 +53,8 @@ export class ComputeMatrixUseCase {
 
   private async callOsrmTable(dto: MatrixRequestDto): Promise<MatrixResult> {
     const { origins, destinations, profile } = dto;
-    const osrmProfile = profile === "bajaj" || profile === "car" ? "driving" : profile === "bike" ? "bicycle" : "walking";
+    // Single-graph unified OSRM serves under driving endpoint
+    const osrmProfile = "driving";
 
     // Combine all points: [origins..., destinations...]
     const allPoints = [...origins, ...destinations];
@@ -62,10 +63,10 @@ export class ComputeMatrixUseCase {
     const sourceIndices = origins.map((_, i) => i).join(";");
     const destIndices = destinations.map((_, i) => origins.length + i).join(";");
 
-    const candidateUrls = [
-      config.routeProvider.osrm.baseUrl,
-      "https://router.project-osrm.org",
-    ].filter(Boolean);
+    const candidateUrls: string[] = [config.routeProvider.osrm.baseUrl];
+    if (config.routeProvider.osrm.allowPublicFallback) {
+      candidateUrls.push("https://router.project-osrm.org");
+    }
 
     let lastError: Error | null = null;
 
@@ -83,17 +84,33 @@ export class ComputeMatrixUseCase {
         if (res.ok) {
           const raw = (await res.json()) as any;
           if (raw.code === "Ok" && Array.isArray(raw.durations)) {
-            // If bajaj, adjust durations with calibrated bajaj surface factor (1.4x car duration on open roads)
             let adjustedDurations = raw.durations;
+            const distances = raw.distances || [];
+
             if (profile === "bajaj") {
+              // 1.35x car duration for Bajaj speed limits and chigign road penalties
               adjustedDurations = raw.durations.map((row: (number | null)[]) =>
                 row.map((val: number | null) => (val !== null ? Math.round(val * 1.35) : null))
+              );
+            } else if (profile === "walking" && Array.isArray(distances)) {
+              // Pedestrian pace ~4.5 km/h (1.25 m/s) based on actual network distance
+              adjustedDurations = distances.map((row: (number | null)[]) =>
+                row.map((dist: number | null) => (dist !== null ? Math.round(dist / 1.25) : null))
+              );
+            } else if (profile === "cycling" && Array.isArray(distances)) {
+              // Bicycle pace ~15 km/h (4.17 m/s) based on actual network distance
+              adjustedDurations = distances.map((row: (number | null)[]) =>
+                row.map((dist: number | null) => (dist !== null ? Math.round(dist / 4.17) : null))
+              );
+            } else if (profile === "motorcycle") {
+              adjustedDurations = raw.durations.map((row: (number | null)[]) =>
+                row.map((val: number | null) => (val !== null ? Math.round(val * 0.95) : null))
               );
             }
 
             return {
               durations: adjustedDurations,
-              distances: raw.distances || [],
+              distances,
               sources: origins,
               destinations,
               profile,

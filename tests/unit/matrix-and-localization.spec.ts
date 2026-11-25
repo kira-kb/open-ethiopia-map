@@ -207,4 +207,71 @@ describe("Production Dispatch Matrix, Session Delivery Cache, and Amharic Locali
       expect(step?.instruction).toContain("ሜ"); // meters in Amharic
     });
   });
+
+  describe("4. Universal Language Resolution (Query Param, Header, Body)", () => {
+    // Dynamic import to test EthiopianTranslator
+    it("should resolve language via URL query parameter (?lang=am, ?l=am)", async () => {
+      const { EthiopianTranslator } = await import("../../src/domain/services/localization/ethiopian-translator");
+
+      expect(EthiopianTranslator.resolveLanguage({ query: { lang: "am" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ query: { l: "am" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ query: { language: "amharic" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ query: { lang: "en" } })).toBe("en");
+    });
+
+    it("should resolve language via HTTP headers (x-lang, accept-language)", async () => {
+      const { EthiopianTranslator } = await import("../../src/domain/services/localization/ethiopian-translator");
+
+      expect(EthiopianTranslator.resolveLanguage({ headers: { "x-lang": "am" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ headers: { "x-language": "am" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ headers: { "accept-language": "am,en;q=0.9" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ headers: { "accept-language": "en-US,en;q=0.9" } })).toBe("en");
+    });
+
+    it("should resolve language via JSON body ({ lang: 'am' })", async () => {
+      const { EthiopianTranslator } = await import("../../src/domain/services/localization/ethiopian-translator");
+
+      expect(EthiopianTranslator.resolveLanguage({ body: { lang: "am" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ body: { language: "amharic" } })).toBe("am");
+      expect(EthiopianTranslator.resolveLanguage({ body: { lang: "en" } })).toBe("en");
+    });
+
+    it("should default to English when no language parameter is provided", async () => {
+      const { EthiopianTranslator } = await import("../../src/domain/services/localization/ethiopian-translator");
+
+      expect(EthiopianTranslator.resolveLanguage({})).toBe("en");
+      expect(EthiopianTranslator.resolveLanguage({ query: {}, headers: {}, body: {} })).toBe("en");
+    });
+
+    it("should format distance and duration properly in Amharic and English", async () => {
+      const { EthiopianTranslator } = await import("../../src/domain/services/localization/ethiopian-translator");
+
+      // Distance
+      expect(EthiopianTranslator.formatDistance(450, "am")).toBe("450 ሜትር");
+      expect(EthiopianTranslator.formatDistance(450, "en")).toBe("450 m");
+      expect(EthiopianTranslator.formatDistance(3200, "am")).toBe("3.2 ኪ.ሜ");
+      expect(EthiopianTranslator.formatDistance(3200, "en")).toBe("3.2 km");
+
+      // Duration
+      expect(EthiopianTranslator.formatDuration(45, "am")).toBe("45 ሰከንድ");
+      expect(EthiopianTranslator.formatDuration(45, "en")).toBe("45 sec");
+      expect(EthiopianTranslator.formatDuration(900, "am")).toBe("15 ደቂቃ");
+      expect(EthiopianTranslator.formatDuration(900, "en")).toBe("15 mins");
+      expect(EthiopianTranslator.formatDuration(4500, "am")).toBe("1 ሰዓት ከ15 ደቂቃ");
+    });
+
+    it("should translate vehicle types and Ethiopian landmarks", async () => {
+      const { EthiopianTranslator } = await import("../../src/domain/services/localization/ethiopian-translator");
+
+      expect(EthiopianTranslator.translateVehicle("bajaj", "am")).toBe("ባጃጅ");
+      expect(EthiopianTranslator.translateVehicle("car", "am")).toBe("መኪና");
+      expect(EthiopianTranslator.translateVehicle("motorcycle", "am")).toBe("ሞተር ሳይክል");
+
+      expect(EthiopianTranslator.translateCity("addis ababa", "am")).toBe("አዲስ አበባ");
+      expect(EthiopianTranslator.translateCity("gondar", "am")).toBe("ጎንደር");
+
+      expect(EthiopianTranslator.translatePlaceName("fasil ghebbi", "am")).toBe("ፋሲል ግቢ");
+      expect(EthiopianTranslator.translatePlaceName("meskel square", "am")).toBe("መስቀል አደባባይ");
+    });
+  });
 });

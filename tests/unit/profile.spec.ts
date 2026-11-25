@@ -48,4 +48,37 @@ describe("RouteProfile & Bajaj Support", () => {
     const parsed = CreateRouteSessionSchema.parse(validSessionPayload);
     expect(parsed.profile).toBe("bajaj");
   });
+
+  it("should normalize documented profile aliases (car, bike, foot, moto, tuktuk)", () => {
+    expect(parseProfile("car")).toBe(RouteProfile.DRIVING);
+    expect(parseProfile("bike")).toBe(RouteProfile.CYCLING);
+    expect(parseProfile("bicycle")).toBe(RouteProfile.CYCLING);
+    expect(parseProfile("foot")).toBe(RouteProfile.WALKING);
+    expect(parseProfile("pedestrian")).toBe(RouteProfile.WALKING);
+    expect(parseProfile("moto")).toBe(RouteProfile.MOTORCYCLE);
+    expect(parseProfile("tuktuk")).toBe(RouteProfile.BAJAJ);
+  });
+
+  it("should accept documented aliases in RouteRequestSchema without validation errors", () => {
+    const carPayload = {
+      origin: { lat: 9.0108, lng: 38.7615 },
+      destination: { lat: 8.9806, lng: 38.7578 },
+      profile: "car",
+    };
+    expect(RouteRequestSchema.parse(carPayload).profile).toBe("driving");
+
+    const bikePayload = {
+      origin: { lat: 9.0108, lng: 38.7615 },
+      destination: { lat: 8.9806, lng: 38.7578 },
+      profile: "bike",
+    };
+    expect(RouteRequestSchema.parse(bikePayload).profile).toBe("cycling");
+
+    const footPayload = {
+      origin: { lat: 9.0108, lng: 38.7615 },
+      destination: { lat: 8.9806, lng: 38.7578 },
+      profile: "foot",
+    };
+    expect(RouteRequestSchema.parse(footPayload).profile).toBe("walking");
+  });
 });
